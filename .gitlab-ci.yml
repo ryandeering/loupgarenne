@@ -36,8 +36,6 @@ build_oldgcc:
     expire_in: 14d
     paths:
       - ./oldgcc-build
-  tags:
-    - shared
 
 build_gcc:
   stage: build
@@ -52,8 +50,6 @@ build_gcc:
     expire_in: 14d
     paths:
       - ./gcc-build
-  tags:
-    - shared
 
 build_clang:
   stage: build
@@ -68,8 +64,6 @@ build_clang:
     expire_in: 14d
     paths:
       - ./clang-build
-  tags:
-    - shared
 
 build_mingw32:
   stage: build
@@ -86,8 +80,6 @@ build_mingw32:
     expire_in: 14d
     paths:
       - ./mingw32-build
-  tags:
-    - shared
 
 build_mingw64:
   stage: build
@@ -104,6 +96,4 @@ build_mingw64:
     expire_in: 14d
     paths:
       - ./mingw64-build
-  tags:
-    - shared
 
