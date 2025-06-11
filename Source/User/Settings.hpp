@@ -45,6 +45,8 @@ extern bool showdamagebar;
 extern bool alwaysblur;
 extern bool immediate;
 extern bool velocityblur;
+extern bool unlockfps;
+extern bool disablevsync;
 extern float volume;
 extern int detail;
 extern int kContextWidth;

@@ -57,9 +57,7 @@ bool newuserblink = false;
 
 std::vector<MenuItem> Menu::items;
 
-MenuItem::MenuItem(MenuItemType _type, int _id, const string& _text, Texture _texture,
-                   int _x, int _y, int _w, int _h, float _r, float _g, float _b,
-                   float _linestartsize, float _lineendsize)
+MenuItem::MenuItem(MenuItemType _type, int _id, const string& _text, Texture _texture, int _x, int _y, int _w, int _h, float _r, float _g, float _b, float _linestartsize, float _lineendsize)
     : type(_type)
     , id(_id)
     , text(_text)
@@ -73,8 +71,7 @@ MenuItem::MenuItem(MenuItemType _type, int _id, const string& _text, Texture _te
     , b(_b)
     , effectfade(0)
     , linestartsize(_linestartsize)
-    , lineendsize(_lineendsize)
-{
+    , lineendsize(_lineendsize) {
     if (type == MenuItem::BUTTON) {
         if (w == -1) {
             w = text.length() * 10;
@@ -85,42 +82,33 @@ MenuItem::MenuItem(MenuItemType _type, int _id, const string& _text, Texture _te
     }
 }
 
-void Menu::clearMenu()
-{
+void Menu::clearMenu() {
     items.clear();
 }
 
-void Menu::addLabel(int id, const string& text, int x, int y, float r, float g, float b)
-{
+void Menu::addLabel(int id, const string& text, int x, int y, float r, float g, float b) {
     items.emplace_back(MenuItem::LABEL, id, text, Texture(), x, y, -1, -1, r, g, b);
 }
-void Menu::addButton(int id, const string& text, int x, int y, float r, float g, float b)
-{
+void Menu::addButton(int id, const string& text, int x, int y, float r, float g, float b) {
     items.emplace_back(MenuItem::BUTTON, id, text, Texture(), x, y, -1, -1, r, g, b);
 }
-void Menu::addImage(int id, Texture texture, int x, int y, int w, int h, float r, float g, float b)
-{
+void Menu::addImage(int id, Texture texture, int x, int y, int w, int h, float r, float g, float b) {
     items.emplace_back(MenuItem::IMAGE, id, "", texture, x, y, w, h, r, g, b);
 }
-void Menu::addButtonImage(int id, Texture texture, int x, int y, int w, int h, float r, float g, float b)
-{
+void Menu::addButtonImage(int id, Texture texture, int x, int y, int w, int h, float r, float g, float b) {
     items.emplace_back(MenuItem::IMAGEBUTTON, id, "", texture, x, y, w, h, r, g, b);
 }
-void Menu::addMapLine(int x, int y, int w, int h, float startsize, float endsize, float r, float g, float b)
-{
+void Menu::addMapLine(int x, int y, int w, int h, float startsize, float endsize, float r, float g, float b) {
     items.emplace_back(MenuItem::MAPLINE, -1, "", Texture(), x, y, w, h, r, g, b, startsize, endsize);
 }
-void Menu::addMapMarker(int id, Texture texture, int x, int y, int w, int h, float r, float g, float b)
-{
+void Menu::addMapMarker(int id, Texture texture, int x, int y, int w, int h, float r, float g, float b) {
     items.emplace_back(MenuItem::MAPMARKER, id, "", texture, x, y, w, h, r, g, b);
 }
-void Menu::addMapLabel(int id, const string& text, int x, int y, float r, float g, float b)
-{
+void Menu::addMapLabel(int id, const string& text, int x, int y, float r, float g, float b) {
     items.emplace_back(MenuItem::MAPLABEL, id, text, Texture(), x, y, -1, -1, r, g, b);
 }
 
-void Menu::setText(int id, const string& text)
-{
+void Menu::setText(int id, const string& text) {
     for (vector<MenuItem>::iterator it = items.begin(); it != items.end(); it++) {
         if (it->id == id) {
             it->text = text;
@@ -130,8 +118,7 @@ void Menu::setText(int id, const string& text)
     }
 }
 
-void Menu::setText(int id, const string& text, int x, int y, int w, int h)
-{
+void Menu::setText(int id, const string& text, int x, int y, int w, int h) {
     for (vector<MenuItem>::iterator it = items.begin(); it != items.end(); it++) {
         if (it->id == id) {
             it->text = text;
@@ -148,8 +135,7 @@ void Menu::setText(int id, const string& text, int x, int y, int w, int h)
     }
 }
 
-int Menu::getSelected(int mousex, int mousey)
-{
+int Menu::getSelected(int mousex, int mousey) {
     for (vector<MenuItem>::reverse_iterator it = items.rbegin(); it != items.rend(); it++) {
         if (it->type == MenuItem::BUTTON || it->type == MenuItem::IMAGEBUTTON || it->type == MenuItem::MAPMARKER) {
             int mx = mousex;
@@ -166,8 +152,7 @@ int Menu::getSelected(int mousex, int mousey)
     return -1;
 }
 
-void Menu::handleFadeEffect()
-{
+void Menu::handleFadeEffect() {
     for (vector<MenuItem>::iterator it = items.begin(); it != items.end(); it++) {
         if (it->id == Game::selected) {
             it->effectfade += multiplier * 5;
@@ -183,8 +168,7 @@ void Menu::handleFadeEffect()
     }
 }
 
-void Menu::drawItems()
-{
+void Menu::drawItems() {
     handleFadeEffect();
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_ALPHA_TEST);
@@ -293,8 +277,7 @@ void Menu::drawItems()
     }
 }
 
-void Menu::updateSettingsMenu()
-{
+void Menu::updateSettingsMenu() {
     std::string sbuf = std::string("Resolution: ") + to_string(newscreenwidth) + "*" + to_string(newscreenheight);
     if (((float)newscreenwidth <= (float)newscreenheight * 1.61) && ((float)newscreenwidth >= (float)newscreenheight * 1.59)) {
         sbuf += " (widescreen)";
@@ -326,6 +309,8 @@ void Menu::updateSettingsMenu()
     setText(10, std::string("Mouse Speed: ") + to_string(int(usermousesensitivity * 5)));
     setText(11, std::string("Volume: ") + to_string(int(volume * 100)) + "%");
     setText(13, showdamagebar ? "Damage Bar: On" : "Damage Bar: Off");
+    setText(15, disablevsync ? "VSync: Off" : "VSync: On");
+    setText(3, unlockfps ? "Unlock FPS: On" : "Unlock FPS: Off");
     if ((newdetail == detail) && (newscreenheight == (int)screenheight) && (newscreenwidth == (int)screenwidth)) {
         setText(8, "Back");
     } else {
@@ -333,15 +318,13 @@ void Menu::updateSettingsMenu()
     }
 }
 
-void Menu::updateStereoConfigMenu()
-{
+void Menu::updateStereoConfigMenu() {
     setText(0, std::string("Stereo mode: ") + StereoModeName(newstereomode));
     setText(1, std::string("Stereo separation: ") + to_string(stereoseparation));
     setText(2, std::string("Reverse stereo: ") + (stereoreverse ? "Yes" : "No"));
 }
 
-void Menu::updateControlsMenu()
-{
+void Menu::updateControlsMenu() {
     setText(0, (string) "Forwards: " + (keyselect == 0 ? "_" : Input::keyToChar(forwardkey)));
     setText(1, (string) "Back: " + (keyselect == 1 ? "_" : Input::keyToChar(backkey)));
     setText(2, (string) "Left: " + (keyselect == 2 ? "_" : Input::keyToChar(leftkey)));
@@ -372,8 +355,7 @@ Values of mainmenu :
 18 stereo configuration
 */
 
-void Menu::Load()
-{
+void Menu::Load() {
     clearMenu();
     switch (mainmenu) {
         case 1:
@@ -387,6 +369,8 @@ void Menu::Load()
         case 3:
             addButton(0, "", 10 + 20, 440);
             addButton(14, "", 10 + 400, 440);
+            addButton(3, "", 10 + 400, 405);
+            addButton(15, "", 10 + 400, 370);
             addButton(1, "", 10 + 60, 405);
             addButton(2, "", 10 + 70, 370);
             addButton(4, "", 10, 335);
@@ -445,13 +429,10 @@ void Menu::Load()
                     XYZ start = campaignlevels[i - 1].getCenter();
                     addMapLine(start.x, start.y, midpoint.x - start.x, midpoint.y - start.y, 0.5, active ? 1 : 0.5, active ? 1 : 0.5, 0, 0);
                 }
-                addMapMarker(NB_CAMPAIGN_MENU_ITEM + i, Mapcircletexture,
-                             midpoint.x - itemsize / 2, midpoint.y - itemsize / 2, itemsize, itemsize, active ? 1 : 0.5, 0, 0);
+                addMapMarker(NB_CAMPAIGN_MENU_ITEM + i, Mapcircletexture, midpoint.x - itemsize / 2, midpoint.y - itemsize / 2, itemsize, itemsize, active ? 1 : 0.5, 0, 0);
 
                 if (active) {
-                    addMapLabel(-2, campaignlevels[i].description,
-                                campaignlevels[i].getStartX() + 10,
-                                campaignlevels[i].getStartY() - 4);
+                    addMapLabel(-2, campaignlevels[i].description, campaignlevels[i].getStartX() + 10, campaignlevels[i].getStartY() - 4);
                 }
             }
         } break;
@@ -520,8 +501,7 @@ void Menu::Load()
     }
 }
 
-void Menu::startChallengeLevel(int selected)
-{
+void Menu::startChallengeLevel(int selected) {
     fireSound();
     flash();
 
@@ -543,8 +523,7 @@ void Menu::startChallengeLevel(int selected)
     pause_sound(stream_menutheme);
 }
 
-void Menu::Tick()
-{
+void Menu::Tick() {
     //escape key pressed
     if (Input::isKeyPressed(SDL_SCANCODE_ESCAPE) &&
         (mainmenu >= 3) && (mainmenu != 8) && !((mainmenu == 7) && entername)) {
@@ -675,6 +654,9 @@ void Menu::Tick()
                             bloodtoggle = 0;
                         }
                         break;
+                    case 3:
+                        unlockfps = !unlockfps;
+                        break;
                     case 4:
                         ismotionblur = !ismotionblur;
                         break;
@@ -734,6 +716,10 @@ void Menu::Tick()
                         break;
                     case 14:
                         toggleFullscreen();
+                        break;
+                    case 15:
+                        disablevsync = !disablevsync;
+                        set_vsync(!disablevsync);
                         break;
                 }
                 updateSettingsMenu();
@@ -951,8 +937,7 @@ void Menu::Tick()
     oldmainmenu = mainmenu;
 }
 
-int setKeySelected_thread(void*)
-{
+int setKeySelected_thread(void*) {
     using namespace Game;
     int scancode = -1;
     SDL_Event evenement;
@@ -1012,8 +997,7 @@ int setKeySelected_thread(void*)
     return 0;
 }
 
-void Menu::setKeySelected()
-{
+void Menu::setKeySelected() {
     waiting = true;
     printf("launch thread\n");
     SDL_Thread* thread = SDL_CreateThread(setKeySelected_thread, NULL, NULL);

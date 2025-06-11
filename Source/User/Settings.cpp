@@ -26,8 +26,7 @@ along with Lugaru.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace Game;
 
-void DefaultSettings()
-{
+void DefaultSettings() {
     detail = 2;
     ismotionblur = 1;
     usermousesensitivity = 1;
@@ -50,6 +49,8 @@ void DefaultSettings()
     showdamagebar = 0;
     immediate = 0;
     velocityblur = 0;
+    unlockfps = 0;
+    disablevsync = 0;
     volume = 0.8f;
     ambientsound = 1;
     devtools = 0;
@@ -68,8 +69,7 @@ void DefaultSettings()
     newdetail = detail;
 }
 
-void SaveSettings()
-{
+void SaveSettings() {
     if (newdetail < 0) {
         newdetail = 0;
     }
@@ -137,6 +137,8 @@ void SaveSettings()
     opstream << immediate;
     opstream << "\nVelocity blur:\n";
     opstream << velocityblur;
+    opstream << "\nUnlock FPS:\n";
+    opstream << unlockfps;
     opstream << "\nVolume:\n";
     opstream << volume;
     opstream << "\nForward key:\n";
@@ -167,12 +169,15 @@ void SaveSettings()
     opstream << stereoseparation;
     opstream << "\nStereoReverse:\n";
     opstream << stereoreverse;
+    opstream << "\nUnlock FPS:\n";
+    opstream << unlockfps;
+    opstream << "\nDisable VSync:\n";
+    opstream << disablevsync;
     opstream << "\n";
     opstream.close();
 }
 
-bool LoadSettings()
-{
+bool LoadSettings() {
     errno = 0;
     ifstream ipstream(Folders::getConfigFilePath(), std::ios::in);
     if (ipstream.fail()) {
@@ -202,12 +207,12 @@ bool LoadSettings()
         if (!strncmp(setting, "Screenwidth", 11)) {
             ipstream >> kContextWidth;
             if (kContextWidth < (int)minscreenwidth || kContextWidth > (int)maxscreenwidth) {
-               kContextWidth = (int)minscreenwidth;
+                kContextWidth = (int)minscreenwidth;
             }
         } else if (!strncmp(setting, "Screenheight", 12)) {
             ipstream >> kContextHeight;
             if (kContextHeight < (int)minscreenheight || kContextHeight > (int)maxscreenheight) {
-               kContextHeight = (int)minscreenheight;
+                kContextHeight = (int)minscreenheight;
             }
         } else if (!strncmp(setting, "Fullscreen", 10)) {
             ipstream >> fullscreen;
@@ -290,6 +295,10 @@ bool LoadSettings()
             ipstream >> stereoseparation;
         } else if (!strncmp(setting, "StereoReverse", 13)) {
             ipstream >> stereoreverse;
+        } else if (!strncmp(setting, "Disable VSync", 13)) {
+            ipstream >> disablevsync;
+        } else if (!strncmp(setting, "Unlock FPS", 10)) {
+            ipstream >> unlockfps;
         } else {
             ipstream >> string;
             fprintf(stderr, "Unknown config option '%s' with value '%s'. Ignoring.\n", setting, string);
@@ -322,6 +331,8 @@ bool LoadSettings()
     if (screenheight < minscreenheight || screenheight > maxscreenheight) {
         screenheight = 768;
     }
+
+    set_vsync(!disablevsync);
 
     newdetail = detail;
     return true;

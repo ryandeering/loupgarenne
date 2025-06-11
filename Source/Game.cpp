@@ -29,12 +29,17 @@ extern int mainmenu;
 
 const char* pathtypenames[] = { "keepwalking", "pause" };
 const char* editortypenames[] = {
-    "active", "sitting", "sitting wall", "sleeping",
-    "dead1", "dead2", "dead3", "dead4"
+    "active",
+    "sitting",
+    "sitting wall",
+    "sleeping",
+    "dead1",
+    "dead2",
+    "dead3",
+    "dead4"
 };
 
-namespace Game
-{
+namespace Game {
 Texture terraintexture;
 Texture terraintexture2;
 Texture loadscreentexture;
@@ -129,20 +134,18 @@ float changedelay = 0;
 bool waiting = false;
 }
 
-void Game::fireSound(int sound)
-{
+void Game::fireSound(int sound) {
     emit_sound_at(sound);
 }
 
-void Game::inputText(string& str, unsigned* charselected)
-{
-    SDL_Event evenement;
-
+void Game::inputText(string& str, unsigned* charselected) {
     if (!waiting) {
         SDL_StartTextInput();
         waiting = true;
+        return;
     }
 
+    SDL_Event evenement;
     while (SDL_PollEvent(&evenement)) {
         if (!sdlEventProc(evenement)) {
             tryquit = 1;
@@ -161,6 +164,7 @@ void Game::inputText(string& str, unsigned* charselected)
                     str.clear();
                     *charselected = 0;
                     waiting = false;
+                    SDL_StopTextInput();
                 } else if (evenement.key.keysym.sym == SDLK_BACKSPACE) {
                     if ((*charselected) > 0) {
                         (*charselected)--;
@@ -184,12 +188,9 @@ void Game::inputText(string& str, unsigned* charselected)
                     }
                 } else if (evenement.key.keysym.sym == SDLK_RETURN) {
                     waiting = false;
+                    SDL_StopTextInput();
                 }
                 break;
         }
-    }
-
-    if (!waiting) {
-        SDL_StopTextInput();
     }
 }

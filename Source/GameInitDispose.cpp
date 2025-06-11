@@ -66,13 +66,11 @@ extern float accountcampaigntime[10];
 extern int accountcampaignchoicesmade[10];
 extern int accountcampaignchoices[10][5000];
 
-void LOG(const std::string&, ...)
-{
+void LOG(const std::string&, ...) {
     // !!! FIXME: write me.
 }
 
-void Dispose()
-{
+void Dispose() {
     LOGFUNC;
 
     Person::clearVictims();
@@ -97,15 +95,13 @@ void Dispose()
     OPENAL_Close();
 }
 
-void Game::newGame()
-{
+void Game::newGame() {
     text = new Text();
     textmono = new Text();
     skybox = new SkyBox();
 }
 
-void Game::deleteGame()
-{
+void Game::deleteGame() {
     delete skybox;
     delete text;
     delete textmono;
@@ -116,8 +112,7 @@ void Game::deleteGame()
     Dispose();
 }
 
-void LoadSave(const std::string& fileName, GLubyte* array)
-{
+void LoadSave(const std::string& fileName, GLubyte* array) {
     LOGFUNC;
 
     LOG(std::string("Loading (S)...") + fileName);
@@ -146,8 +141,7 @@ void LoadSave(const std::string& fileName, GLubyte* array)
 }
 
 //***************> ResizeGLScene() <******/
-GLvoid Game::ReSizeGLScene(float fov, float pnear)
-{
+GLvoid Game::ReSizeGLScene(float fov, float pnear) {
     if (screenheight == 0) {
         screenheight = 1;
     }
@@ -166,8 +160,7 @@ GLvoid Game::ReSizeGLScene(float fov, float pnear)
     glLoadIdentity();
 }
 
-void Game::LoadingScreen()
-{
+void Game::LoadingScreen() {
     if (!visibleloading) {
         return;
     }
@@ -184,8 +177,8 @@ void Game::LoadingScreen()
     }
 
     multiplier = deltaTime;
-    if (multiplier < .001) {
-        multiplier = .001;
+    if (multiplier < 0.000001f) {
+        multiplier = 0.000001f; // prevent zero deltaTime without capping high FPS - Ryan Deering
     }
     if (multiplier > 10) {
         multiplier = 10;
@@ -389,8 +382,7 @@ void Game::LoadingScreen()
     }
 }
 
-void FadeLoadingScreen(float howmuch)
-{
+void FadeLoadingScreen(float howmuch) {
     static float loadprogress;
 
     glLoadIdentity();
@@ -444,8 +436,7 @@ void FadeLoadingScreen(float howmuch)
     swap_gl_buffers();
 }
 
-void Game::InitGame()
-{
+void Game::InitGame() {
     LOGFUNC;
 
     numchallengelevels = 14;
@@ -606,8 +597,7 @@ void Game::InitGame()
     Person::players.emplace_back(new Person());
 }
 
-void Game::LoadScreenTexture()
-{
+void Game::LoadScreenTexture() {
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     if (!Game::screentexture) {
@@ -625,8 +615,7 @@ void Game::LoadScreenTexture()
 
 //TODO: move LoadStuff() closer to GameTick.cpp to get rid of various vars shared in Game.hpp
 /* Loads models and textures which only needs to be loaded once */
-void Game::LoadStuff()
-{
+void Game::LoadStuff() {
     float temptexdetail;
     float viewdistdetail;
     float megascale = 1;

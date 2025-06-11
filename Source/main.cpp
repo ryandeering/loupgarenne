@@ -22,9 +22,9 @@ along with Lugaru.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "Audio/openal_wrapper.hpp"
 #include "Graphic/gamegl.hpp"
+#include "Menu/Menu.hpp"
 #include "Platform/Platform.hpp"
 #include "User/Settings.hpp"
-#include "Menu/Menu.hpp"
 #include "Version.hpp"
 
 #include <fstream>
@@ -66,6 +66,7 @@ using namespace std;
 set<pair<int, int>> resolutions;
 
 // statics/globals (internal only) ------------------------------------------
+static void updateMouseState(bool grabbed);
 
 // Menu defs
 
@@ -76,8 +77,7 @@ int kContextHeight;
 
 // OpenGL Drawing
 
-void initGL()
-{
+void initGL() {
     glClear(GL_COLOR_BUFFER_BIT);
     swap_gl_buffers();
 
@@ -124,8 +124,7 @@ void initGL()
     }
 }
 
-void toggleFullscreen()
-{
+void toggleFullscreen() {
     fullscreen = !fullscreen;
     Uint32 flags = SDL_GetWindowFlags(sdlwindow);
     if (flags & SDL_WINDOW_FULLSCREEN) {
@@ -134,10 +133,10 @@ void toggleFullscreen()
         flags |= SDL_WINDOW_FULLSCREEN;
     }
     SDL_SetWindowFullscreen(sdlwindow, flags);
+    updateMouseState(true);
 }
 
-SDL_bool sdlEventProc(const SDL_Event& e)
-{
+SDL_bool sdlEventProc(const SDL_Event& e) {
     switch (e.type) {
         case SDL_QUIT:
             return SDL_FALSE;
@@ -145,6 +144,12 @@ SDL_bool sdlEventProc(const SDL_Event& e)
         case SDL_WINDOWEVENT:
             if (e.window.event == SDL_WINDOWEVENT_CLOSE) {
                 return SDL_FALSE;
+            } else if (e.window.event == SDL_WINDOWEVENT_MINIMIZED) {
+                updateMouseState(false); // release mouse when minimised
+            } else if (e.window.event == SDL_WINDOWEVENT_RESTORED ||
+                       e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED ||
+                       e.window.event == SDL_WINDOWEVENT_MAXIMIZED) {
+                updateMouseState(true); // restore mouse state when window is active
             }
             break;
 
@@ -174,8 +179,7 @@ SDL_bool sdlEventProc(const SDL_Event& e)
 
 static Point gMidPoint;
 
-bool SetUp()
-{
+bool SetUp() {
     LOGFUNC;
 
     cellophane = 0;
@@ -245,22 +249,19 @@ bool SetUp()
         sdlflags |= SDL_WINDOW_INPUT_GRABBED;
     }
 
-    sdlwindow = SDL_CreateWindow("Lugaru", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0),
-                                 kContextWidth, kContextHeight, sdlflags);
+    sdlwindow = SDL_CreateWindow("Lugaru", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0), kContextWidth, kContextHeight, sdlflags);
 
     if (!sdlwindow) {
         fprintf(stderr, "SDL_CreateWindow() failed: %s\n", SDL_GetError());
         fprintf(stderr, "forcing 640x480...\n");
         kContextWidth = 640;
         kContextHeight = 480;
-        sdlwindow = SDL_CreateWindow("Lugaru", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0),
-                                     kContextWidth, kContextHeight, sdlflags);
+        sdlwindow = SDL_CreateWindow("Lugaru", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0), kContextWidth, kContextHeight, sdlflags);
         if (!sdlwindow) {
             fprintf(stderr, "SDL_CreateWindow() failed: %s\n", SDL_GetError());
             fprintf(stderr, "forcing 640x480 windowed mode...\n");
             sdlflags &= ~SDL_WINDOW_FULLSCREEN;
-            sdlwindow = SDL_CreateWindow("Lugaru", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0),
-                                         kContextWidth, kContextHeight, sdlflags);
+            sdlwindow = SDL_CreateWindow("Lugaru", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0), kContextWidth, kContextHeight, sdlflags);
 
             if (!sdlwindow) {
                 fprintf(stderr, "SDL_CreateWindow() failed: %s\n", SDL_GetError());
@@ -285,14 +286,9 @@ bool SetUp()
         return false;
     }
 
-    if (SDL_GL_SetSwapInterval(-1) == -1) { // try swap_tear first.
-        SDL_GL_SetSwapInterval(1);
-    }
+    set_vsync(!disablevsync);
 
-    SDL_ShowCursor(0);
-    if (!commandLineOptions[NOMOUSEGRAB].last()->type()) {
-        SDL_SetRelativeMouseMode(SDL_TRUE);
-    }
+    updateMouseState(true);
 
     initGL();
 
@@ -318,8 +314,18 @@ bool SetUp()
     return true;
 }
 
-static void DoMouse()
-{
+static void updateMouseState(bool grabbed) {
+    SDL_ShowCursor(0); // hide system cursor since we use custom cursor
+    if (!commandLineOptions[NOMOUSEGRAB].last()->type()) {
+        SDL_SetRelativeMouseMode(grabbed ? SDL_TRUE : SDL_FALSE);
+        SDL_SetWindowGrab(sdlwindow, grabbed ? SDL_TRUE : SDL_FALSE);
+    }
+    if (sdlwindow) {
+        SDL_UpdateWindowSurface(sdlwindow);
+    }
+}
+
+static void DoMouse() {
 
     if (mainmenu || ((abs(deltah) < 10 * realmultiplier * 1000) && (abs(deltav) < 10 * realmultiplier * 1000))) {
         deltah *= usermousesensitivity;
@@ -339,8 +345,7 @@ static void DoMouse()
     }
 }
 
-void DoFrameRate(int update)
-{
+void DoFrameRate(int update) {
     static long frames = 0;
 
     static AbsoluteTime time = { 0, 0 };
@@ -355,8 +360,8 @@ void DoFrameRate(int update)
     }
 
     multiplier = deltaTime;
-    if (multiplier < .001) {
-        multiplier = .001;
+    if (multiplier < 0.000001f) {
+        multiplier = 0.000001f; // prevent zero deltaTime without capping high FPS - Ryan Deering
     }
     if (multiplier > 10) {
         multiplier = 10;
@@ -381,10 +386,10 @@ void DoFrameRate(int update)
     }
 }
 
-void DoUpdate()
-{
+void DoUpdate() {
     static float sps = 200;
     static int count;
+    static float countAccumulator = 0.f;
     static float oldmult;
 
     DoFrameRate(1);
@@ -394,9 +399,11 @@ void DoUpdate()
 
     fps = 1 / multiplier;
 
-    count = multiplier * sps;
-    if (count < 2) {
-        count = 2;
+    countAccumulator += multiplier * sps;
+    count = static_cast<int>(countAccumulator);
+    countAccumulator -= count;
+    if (count < 1) {
+        count = 1;
     }
 
     realmultiplier = multiplier;
@@ -471,8 +478,7 @@ void DoUpdate()
 
 // --------------------------------------------------------------------------
 
-void CleanUp(void)
-{
+void CleanUp(void) {
     LOGFUNC;
 
     delete[] commandLineOptionsBuffer;
@@ -482,15 +488,13 @@ void CleanUp(void)
 
 // --------------------------------------------------------------------------
 
-static bool IsFocused()
-{
+static bool IsFocused() {
     return ((SDL_GetWindowFlags(sdlwindow) & SDL_WINDOW_INPUT_FOCUS) != 0);
 }
 
 #ifndef WIN32
 // (code lifted from physfs: http://icculus.org/physfs/ ... zlib license.)
-static char* findBinaryInPath(const char* bin, char* envr)
-{
+static char* findBinaryInPath(const char* bin, char* envr) {
     size_t alloc_size = 0;
     char* exe = NULL;
     char* start = envr;
@@ -538,8 +542,7 @@ static char* findBinaryInPath(const char* bin, char* envr)
     return (NULL); /* doesn't exist in path. */
 } /* findBinaryInPath */
 
-char* calcBaseDir(const char* argv0)
-{
+char* calcBaseDir(const char* argv0) {
     /* If there isn't a path on argv0, then look through the $PATH for it. */
     char* retval;
     char* envr;
@@ -565,8 +568,7 @@ char* calcBaseDir(const char* argv0)
     return (retval);
 }
 
-static inline void chdirToAppPath(const char* argv0)
-{
+static inline void chdirToAppPath(const char* argv0) {
     char* dir = calcBaseDir(argv0);
     if (dir) {
 #if (defined(__APPLE__) && defined(__MACH__))
@@ -590,29 +592,27 @@ static inline void chdirToAppPath(const char* argv0)
 }
 #endif
 
-const option::Descriptor usage[] =
-    {
-      { UNKNOWN, 0, "", "", option::Arg::None, "USAGE: lugaru [options]\n\n"
-                                               "Options:" },
-      { VERSION, 0, "v", "version", option::Arg::None, " -v, --version     Print version and exit." },
-      { HELP, 0, "h", "help", option::Arg::None, " -h, --help        Print usage and exit." },
-      { FULLSCREEN, 1, "f", "fullscreen", option::Arg::None, " -f, --fullscreen  Start the game in fullscreen mode." },
-      { FULLSCREEN, 0, "w", "windowed", option::Arg::None, " -w, --windowed    Start the game in windowed mode (default)." },
-      { NOMOUSEGRAB, 1, "", "nomousegrab", option::Arg::None, " --nomousegrab     Disable mousegrab." },
-      { NOMOUSEGRAB, 0, "", "mousegrab", option::Arg::None, " --mousegrab       Enable mousegrab (default)." },
-      { SOUND, 1, "", "nosound", option::Arg::None, " --nosound         Disable sound." },
-      { OPENALINFO, 0, "", "openal-info", option::Arg::None, " --openal-info     Print info about OpenAL at launch." },
-      { SHOWRESOLUTIONS, 0, "", "showresolutions", option::Arg::None, " --showresolutions List the resolutions found by SDL at launch." },
-      { DEVTOOLS, 0, "d", "devtools", option::Arg::None, " -d, --devtools    Enable dev tools: console, level editor and debug info." },
-      { CMD, 0, "c", "command", option::Arg::Optional, " -c, --command    Run this command at game start. May be used to load a map." },
-      { 0, 0, 0, 0, 0, 0 }
-    };
+const option::Descriptor usage[] = {
+    { UNKNOWN, 0, "", "", option::Arg::None, "USAGE: lugaru [options]\n\n"
+                                             "Options:" },
+    { VERSION, 0, "v", "version", option::Arg::None, " -v, --version     Print version and exit." },
+    { HELP, 0, "h", "help", option::Arg::None, " -h, --help        Print usage and exit." },
+    { FULLSCREEN, 1, "f", "fullscreen", option::Arg::None, " -f, --fullscreen  Start the game in fullscreen mode." },
+    { FULLSCREEN, 0, "w", "windowed", option::Arg::None, " -w, --windowed    Start the game in windowed mode (default)." },
+    { NOMOUSEGRAB, 1, "", "nomousegrab", option::Arg::None, " --nomousegrab     Disable mousegrab." },
+    { NOMOUSEGRAB, 0, "", "mousegrab", option::Arg::None, " --mousegrab       Enable mousegrab (default)." },
+    { SOUND, 1, "", "nosound", option::Arg::None, " --nosound         Disable sound." },
+    { OPENALINFO, 0, "", "openal-info", option::Arg::None, " --openal-info     Print info about OpenAL at launch." },
+    { SHOWRESOLUTIONS, 0, "", "showresolutions", option::Arg::None, " --showresolutions List the resolutions found by SDL at launch." },
+    { DEVTOOLS, 0, "d", "devtools", option::Arg::None, " -d, --devtools    Enable dev tools: console, level editor and debug info." },
+    { CMD, 0, "c", "command", option::Arg::Optional, " -c, --command    Run this command at game start. May be used to load a map." },
+    { 0, 0, 0, 0, 0, 0 }
+};
 
 option::Option commandLineOptions[commandLineOptionsNumber];
 option::Option* commandLineOptionsBuffer;
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     argc -= (argc > 0);
     argv += (argc > 0); // skip program name argv[0] if present
     option::Stats stats(true, usage, argc, argv);

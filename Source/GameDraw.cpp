@@ -89,8 +89,7 @@ int numboundaries = 0;
 XYZ boundary[360];
 int change = 0;
 
-enum drawmodes
-{
+enum drawmodes {
     normalmode,
     motionblurmode,
     radialzoommode,
@@ -111,8 +110,7 @@ void Game::flash(float amount, int delay) // shouldn't be that way, these should
 void DrawMenu();
 
 /*********************> DrawGLScene() <*****/
-int Game::DrawGLScene(StereoSide side)
-{
+int Game::DrawGLScene(StereoSide side) {
     static float texcoordwidth, texcoordheight;
     static float texviewwidth, texviewheight;
     static XYZ checkpoint;
@@ -191,7 +189,7 @@ int Game::DrawGLScene(StereoSide side)
         }
         if ((!changed && !slomo) || loading) {
             drawmode = normalmode;
-            if (ismotionblur && (/*fps>100||*/ alwaysblur)) {
+            if (ismotionblur && (fps > 100 || alwaysblur)) {
                 if (olddrawmode != realmotionblurmode) {
                     change = 1;
                 } else {
@@ -1631,10 +1629,10 @@ int Game::DrawGLScene(StereoSide side)
     return 0;
 }
 
-void DrawMenu()
-{
-    // !!! FIXME: hack: clamp framerate in menu so text input works correctly on fast systems.
-    SDL_Delay(15);
+void DrawMenu() {
+    if (!unlockfps) {
+        SDL_Delay(15);
+    }
 
     glDrawBuffer(GL_BACK);
     glReadBuffer(GL_BACK);

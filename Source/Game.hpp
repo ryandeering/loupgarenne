@@ -45,8 +45,7 @@ along with Lugaru.  If not, see <http://www.gnu.org/licenses/>.
 
 #define NB_CAMPAIGN_MENU_ITEM 7
 
-namespace Game
-{
+namespace Game {
 extern Texture terraintexture;
 extern Texture terraintexture2;
 extern Texture loadscreentexture;
@@ -166,6 +165,10 @@ void fireSound(int sound = fireendsound);
 void inputText(std::string& str, unsigned* charselected);
 void flash(float amount = 1, int delay = 1);
 }
+
+extern bool unlockfps;
+extern bool disablevsync;
+
 float roughDirection(XYZ vec);
 float roughDirectionTo(XYZ start, XYZ end);
 float pitchTo(XYZ start, XYZ end);
@@ -177,38 +180,48 @@ float sq(float n);
 #endif
 #endif
 
-static __forceinline void swap_gl_buffers(void)
-{
+static __forceinline void swap_gl_buffers(void) {
     extern SDL_Window* sdlwindow;
     SDL_GL_SwapWindow(sdlwindow);
 
-    // try to limit this to 60fps, even if vsync fails.
-    Uint32 now;
-    static Uint32 frameticks = 0;
-    const Uint32 endticks = (frameticks + 16);
-    while ((now = SDL_GetTicks()) < endticks) { /* spin. */
+    // try to limit this to 60fps, even if vsync fails unless disabled
+    if (!unlockfps) {
+        Uint32 now;
+        static Uint32 frameticks = 0;
+        const Uint32 endticks = (frameticks + 16);
+        while ((now = SDL_GetTicks()) < endticks) { /* spin. */
+        }
+        frameticks = now;
     }
-    frameticks = now;
 }
 
-enum maptypes
-{
+static __forceinline void set_vsync(bool enabled) {
+    if (!enabled) {
+        SDL_GL_SetSwapInterval(0);
+    } else {
+        SDL_GL_SetSwapInterval(1);
+    }
+}
+
+static __forceinline bool is_vsync_enabled(void) {
+    return SDL_GL_GetSwapInterval() != 0;
+}
+
+enum maptypes {
     mapkilleveryone,
     mapgosomewhere,
     mapkillsomeone,
     mapkillmost // These two are unused
 };
 
-enum pathtypes
-{
+enum pathtypes {
     wpkeepwalking,
     wppause
 };
 
 extern const char* pathtypenames[2];
 
-enum editortypes
-{
+enum editortypes {
     typeactive,
     typesitting,
     typesittingwall,
@@ -223,8 +236,7 @@ extern const char* editortypenames[8];
 
 SDL_bool sdlEventProc(const SDL_Event& e);
 
-enum optionIndex
-{
+enum optionIndex {
     UNKNOWN,
     VERSION,
     HELP,

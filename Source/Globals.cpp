@@ -49,6 +49,8 @@ float screenwidth = 0, screenheight = 0;
 float minscreenwidth = 640, minscreenheight = 480;
 float maxscreenwidth = 3000, maxscreenheight = 3000;
 bool fullscreen = 0;
+bool unlockfps = false;
+bool disablevsync = false;
 float viewdistance = 0;
 XYZ viewer;
 XYZ viewerfacing;
