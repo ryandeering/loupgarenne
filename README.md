@@ -43,9 +43,7 @@ Download the latest release for your platform from the [Releases page](https://g
 - **macOS**: `loupgarenne-x.x-macos-universal.zip` (Intel and Apple Silicon)
 - **Linux**: `loupgarenne-x.x-linux-x64.tar.gz`
 
-Extract the archive:
-- Copy the executable (`lugaru.exe` on Windows, `lugaru` on Linux, or the app bundle on macOS) into your existing Lugaru HD installation folder
-- On macOS, you may need to extract the contents of the old app bundle into a new folder and run the new app bundle from there.
+- Extract the archive and run the executable (`lugaru.exe` on Windows, `lugaru` on Linux, or the app bundle on macOS) 
 
 ## Project links
 
