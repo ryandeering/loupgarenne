@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -180,6 +181,12 @@ float sq(float n);
 #endif
 #endif
 
+static Uint32 g_frameticks = 0;
+
+static __forceinline void reset_frame_limiter(void) {
+    g_frameticks = SDL_GetTicks();
+}
+
 static __forceinline void swap_gl_buffers(void) {
     extern SDL_Window* sdlwindow;
     SDL_GL_SwapWindow(sdlwindow);
@@ -187,11 +194,10 @@ static __forceinline void swap_gl_buffers(void) {
     // try to limit this to 60fps, even if vsync fails unless disabled
     if (!unlockfps) {
         Uint32 now;
-        static Uint32 frameticks = 0;
-        const Uint32 endticks = (frameticks + 16);
+        const Uint32 endticks = (g_frameticks + 16);
         while ((now = SDL_GetTicks()) < endticks) { /* spin. */
         }
-        frameticks = now;
+        g_frameticks = now;
     }
 }
 

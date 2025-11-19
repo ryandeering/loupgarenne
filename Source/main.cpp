@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -46,6 +47,9 @@ using namespace Game;
 
 extern float multiplier;
 extern float realmultiplier;
+extern float frameDeltaTime;
+extern bool isFirstPhysicsTickOfFrame;
+extern bool physicsRanThisFrame;
 extern int slomo;
 extern bool cellophane;
 extern float texdetail;
@@ -67,6 +71,7 @@ set<pair<int, int>> resolutions;
 
 // statics/globals (internal only) ------------------------------------------
 static void updateMouseState(bool grabbed);
+static void resetPhysicsAccumulator();
 
 // Menu defs
 
@@ -77,7 +82,8 @@ int kContextHeight;
 
 // OpenGL Drawing
 
-void initGL() {
+void initGL()
+{
     glClear(GL_COLOR_BUFFER_BIT);
     swap_gl_buffers();
 
@@ -124,7 +130,8 @@ void initGL() {
     }
 }
 
-void toggleFullscreen() {
+void toggleFullscreen()
+{
     fullscreen = !fullscreen;
     Uint32 flags = SDL_GetWindowFlags(sdlwindow);
     if (flags & SDL_WINDOW_FULLSCREEN) {
@@ -136,7 +143,8 @@ void toggleFullscreen() {
     updateMouseState(true);
 }
 
-SDL_bool sdlEventProc(const SDL_Event& e) {
+SDL_bool sdlEventProc(const SDL_Event& e)
+{
     switch (e.type) {
         case SDL_QUIT:
             return SDL_FALSE;
@@ -144,12 +152,21 @@ SDL_bool sdlEventProc(const SDL_Event& e) {
         case SDL_WINDOWEVENT:
             if (e.window.event == SDL_WINDOWEVENT_CLOSE) {
                 return SDL_FALSE;
-            } else if (e.window.event == SDL_WINDOWEVENT_MINIMIZED) {
-                updateMouseState(false); // release mouse when minimised
+            } else if (e.window.event == SDL_WINDOWEVENT_MINIMIZED ||
+                       e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+                updateMouseState(false); // release mouse when minimised or focus lost
+                deltah = 0;
+                deltav = 0;
+                resetPhysicsAccumulator();
+                reset_frame_limiter();
             } else if (e.window.event == SDL_WINDOWEVENT_RESTORED ||
                        e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED ||
                        e.window.event == SDL_WINDOWEVENT_MAXIMIZED) {
                 updateMouseState(true); // restore mouse state when window is active
+                deltah = 0;
+                deltav = 0;
+                resetPhysicsAccumulator();
+                reset_frame_limiter();
             }
             break;
 
@@ -179,7 +196,8 @@ SDL_bool sdlEventProc(const SDL_Event& e) {
 
 static Point gMidPoint;
 
-bool SetUp() {
+bool SetUp()
+{
     LOGFUNC;
 
     cellophane = 0;
@@ -314,7 +332,8 @@ bool SetUp() {
     return true;
 }
 
-static void updateMouseState(bool grabbed) {
+static void updateMouseState(bool grabbed)
+{
     SDL_ShowCursor(0); // hide system cursor since we use custom cursor
     if (!commandLineOptions[NOMOUSEGRAB].last()->type()) {
         SDL_SetRelativeMouseMode(grabbed ? SDL_TRUE : SDL_FALSE);
@@ -325,7 +344,8 @@ static void updateMouseState(bool grabbed) {
     }
 }
 
-static void DoMouse() {
+static void DoMouse()
+{
 
     if (mainmenu || ((abs(deltah) < 10 * realmultiplier * 1000) && (abs(deltav) < 10 * realmultiplier * 1000))) {
         deltah *= usermousesensitivity;
@@ -345,7 +365,8 @@ static void DoMouse() {
     }
 }
 
-void DoFrameRate(int update) {
+void DoFrameRate(int update)
+{
     static long frames = 0;
 
     static AbsoluteTime time = { 0, 0 };
@@ -357,6 +378,13 @@ void DoFrameRate(int update) {
         deltaTime /= -1000000.0;
     } else { // else milliseconds
         deltaTime /= 1000.0;
+    }
+
+    // Calculate FPS from unclamped deltaTime for accurate display
+    if (deltaTime > 0.0) {
+        fps = 1.0f / deltaTime;
+    } else {
+        fps = 0.0f;
     }
 
     multiplier = deltaTime;
@@ -386,52 +414,92 @@ void DoFrameRate(int update) {
     }
 }
 
-void DoUpdate() {
-    static float sps = 200;
-    static int count;
-    static float countAccumulator = 0.f;
-    static float oldmult;
+// Global flag for accumulator reset
+static bool g_resetAccumulator = false;
+
+// Reset physics accumulator to prevent burst substeps after focus regain or pause
+static void resetPhysicsAccumulator()
+{
+    g_resetAccumulator = true;
+}
+
+void DoUpdate()
+{
+    // Fixed timestep at 1000Hz - matches physics constants tuned for high FPS
+    const float PHYSICS_DT = 0.001f;
+    static float physicsAccumulator = 0.f;
+
+    if (g_resetAccumulator) {
+        physicsAccumulator = 0.f;
+        g_resetAccumulator = false;
+    }
 
     DoFrameRate(1);
+
+    // Guard against giant deltaTime from stalls/focus loss
+    if (multiplier > 0.25f) {
+        multiplier = 0.25f;
+    }
+    // Clamp for gameplay speed (slomo, difficulty still applied later)
     if (multiplier > .6) {
         multiplier = .6;
     }
 
-    fps = 1 / multiplier;
-
-    countAccumulator += multiplier * sps;
-    count = static_cast<int>(countAccumulator);
-    countAccumulator -= count;
-    if (count < 1) {
-        count = 1;
-    }
-
-    realmultiplier = multiplier;
-    multiplier *= gamespeed;
+    // Apply gameplay modifiers to frame time
+    float frameTime = multiplier;
+    realmultiplier = frameTime;
+    frameTime *= gamespeed;
     if (difficulty == 1) {
-        multiplier *= .9;
+        frameTime *= .9;
     }
     if (difficulty == 0) {
-        multiplier *= .8;
+        frameTime *= .8;
     }
-
     if (loading == 4) {
-        multiplier *= .00001;
+        frameTime *= .00001;
     }
     if (slomo && !mainmenu) {
-        multiplier *= slomospeed;
+        frameTime *= slomospeed;
     }
-    oldmult = multiplier;
-    multiplier /= (float)count;
+
+    // Set multiplier for non-physics code (DoMouse, TickOnce, TickOnceAfter)
+    multiplier = frameTime;
+    frameDeltaTime = frameTime;  // For exponential damping in Tick()
+
+    // Accumulate time for fixed timestep
+    physicsAccumulator += frameTime;
+
+    // Clamp accumulator to prevent spiral of death when physics can't keep up
+    // Cap at 20 steps: supports 60fps at ~100% speed, 50fps+ at full speed
+    // Below 50fps, game runs in slow motion (acceptable degradation)
+    const int MAX_PHYSICS_STEPS = 20;
+    const float MAX_ACCUMULATOR = MAX_PHYSICS_STEPS * PHYSICS_DT;
+    if (physicsAccumulator > MAX_ACCUMULATOR) {
+        physicsAccumulator = MAX_ACCUMULATOR;
+    }
 
     DoMouse();
 
     TickOnce();
 
-    for (int i = 0; i < count; i++) {
+    // Run physics at fixed 1000Hz timestep
+    // At 60fps: ~17 steps/frame (99.6% speed)
+    // At 144fps: ~7 steps/frame (99.4% speed)
+    // At 240fps+: 1-4 steps/frame (100% speed)
+    int steps = 0;
+    isFirstPhysicsTickOfFrame = true;  // Mark first tick for head tracking
+    physicsRanThisFrame = false;  // Track if any physics ran
+    while (physicsAccumulator >= PHYSICS_DT && steps < MAX_PHYSICS_STEPS) {
+        multiplier = PHYSICS_DT;  // Always use fixed dt for physics
         Tick();
+        isFirstPhysicsTickOfFrame = false;  // Clear after first tick
+        physicsRanThisFrame = true;  // At least one tick ran
+        physicsAccumulator -= PHYSICS_DT;
+        steps++;
     }
-    multiplier = oldmult;
+
+    // Restore multiplier to frame time for non-physics code
+    multiplier = frameTime;
 
     TickOnceAfter();
     /* - Debug code to test how many channels were active on average per frame
@@ -478,7 +546,8 @@ void DoUpdate() {
 
 // --------------------------------------------------------------------------
 
-void CleanUp(void) {
+void CleanUp(void)
+{
     LOGFUNC;
 
     delete[] commandLineOptionsBuffer;
@@ -488,13 +557,15 @@ void CleanUp(void) {
 
 // --------------------------------------------------------------------------
 
-static bool IsFocused() {
+static bool IsFocused()
+{
     return ((SDL_GetWindowFlags(sdlwindow) & SDL_WINDOW_INPUT_FOCUS) != 0);
 }
 
 #ifndef WIN32
 // (code lifted from physfs: http://icculus.org/physfs/ ... zlib license.)
-static char* findBinaryInPath(const char* bin, char* envr) {
+static char* findBinaryInPath(const char* bin, char* envr)
+{
     size_t alloc_size = 0;
     char* exe = NULL;
     char* start = envr;
@@ -542,7 +613,8 @@ static char* findBinaryInPath(const char* bin, char* envr) {
     return (NULL); /* doesn't exist in path. */
 } /* findBinaryInPath */
 
-char* calcBaseDir(const char* argv0) {
+char* calcBaseDir(const char* argv0)
+{
     /* If there isn't a path on argv0, then look through the $PATH for it. */
     char* retval;
     char* envr;
@@ -568,7 +640,8 @@ char* calcBaseDir(const char* argv0) {
     return (retval);
 }
 
-static inline void chdirToAppPath(const char* argv0) {
+static inline void chdirToAppPath(const char* argv0)
+{
     char* dir = calcBaseDir(argv0);
     if (dir) {
 #if (defined(__APPLE__) && defined(__MACH__))
@@ -612,7 +685,8 @@ const option::Descriptor usage[] = {
 option::Option commandLineOptions[commandLineOptionsNumber];
 option::Option* commandLineOptionsBuffer;
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     argc -= (argc > 0);
     argv += (argc > 0); // skip program name argv[0] if present
     option::Stats stats(true, usage, argc, argv);
@@ -630,9 +704,11 @@ int main(int argc, char** argv) {
 
     // Always start by printing the version and info to the stdout
     std::cout << "--------------------------------------------------------------------------\n"
-              << "Lugaru HD: The Rabbit's Foot, by Wolfire Games and the OSS Lugaru project.\n\n"
+              << "Loupgarenne - A fork of Lugaru HD / OSS Lugaru\n"
+              << "Based on work by Wolfire Games and the OSS Lugaru project.\n\n"
               << "Licensed under the GPL 2.0+ and CC-BY-SA 3.0 and 4.0 licenses.\n"
-              << "More information, updates and bug reports at http://osslugaru.gitlab.io\n"
+              << "Fork: https://github.com/ryandeering/loupgarenne\n"
+              << "Upstream: https://gitlab.com/osslugaru/lugaru\n"
               << std::endl;
 
     std::cout << "Version " + VERSION_STRING + " -- " + VERSION_BUILD_TYPE + " build\n"
@@ -724,7 +800,12 @@ int main(int argc, char** argv) {
                     }
 
                     // game is not in focus, give CPU time to other apps by waiting for messages instead of 'peeking'
-                    SDL_WaitEvent(0);
+                    SDL_Event e;
+                    if (SDL_WaitEvent(&e)) {
+                        if (!sdlEventProc(e)) {
+                            gameDone = true;
+                        }
+                    }
                 }
             }
 

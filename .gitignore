@@ -4,6 +4,8 @@ Xcode/build
 Xcode/*.xcodeproj/*.mode1v3
 Xcode/*.xcodeproj/*.pbxuser
 build*
+!.devcontainer/build*.sh
+!.github/workflows/build*.yml
 *~
 .*.swp
 *.aps

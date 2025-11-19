@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -37,6 +38,7 @@ along with Lugaru.  If not, see <http://www.gnu.org/licenses/>.
 using namespace Game;
 
 extern float multiplier;
+extern float frameDeltaTime;
 extern std::set<std::pair<int, int>> resolutions;
 extern int mainmenu;
 extern std::vector<CampaignLevel> campaignlevels;
@@ -155,12 +157,12 @@ int Menu::getSelected(int mousex, int mousey) {
 void Menu::handleFadeEffect() {
     for (vector<MenuItem>::iterator it = items.begin(); it != items.end(); it++) {
         if (it->id == Game::selected) {
-            it->effectfade += multiplier * 5;
+            it->effectfade += frameDeltaTime * 5;
             if (it->effectfade > 1) {
                 it->effectfade = 1;
             }
         } else {
-            it->effectfade -= multiplier * 5;
+            it->effectfade -= frameDeltaTime * 5;
             if (it->effectfade < 0) {
                 it->effectfade = 0;
             }
@@ -364,7 +366,7 @@ void Menu::Load() {
             addButtonImage(1, Mainmenuitems[mainmenu == 1 ? 1 : 5], 18, 480 - 152 - 32, 128, 32);
             addButtonImage(2, Mainmenuitems[2], 18, 480 - 228 - 32, 112, 32);
             addButtonImage(3, Mainmenuitems[mainmenu == 1 ? 3 : 6], 18, 480 - 306 - 32, mainmenu == 1 ? 68 : 132, 32);
-            addLabel(-1, VERSION_NUMBER + VERSION_SUFFIX, 640 - 100, 10);
+            // addLabel(-1, VERSION_NUMBER + VERSION_SUFFIX, 640 - 100, 10);
             break;
         case 3:
             addButton(0, "", 10 + 20, 440);

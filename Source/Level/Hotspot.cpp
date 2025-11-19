@@ -1,7 +1,8 @@
 /*
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

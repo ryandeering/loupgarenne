@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,6 +28,7 @@ extern int environment;
 extern float texscale;
 extern Light light;
 extern float multiplier;
+extern float frameDeltaTime;
 extern float gravity;
 extern FRUSTUM frustum;
 extern Terrain terrain;
@@ -45,7 +47,7 @@ Texture Object::treetextureptr;
 Texture Object::bushtextureptr;
 Texture Object::rocktextureptr;
 
-//Functions
+// Functions
 
 Object::Object()
     : position()
@@ -249,62 +251,64 @@ void Object::doShadows(XYZ lightloc)
 
 void Object::handleRot(int divide)
 {
-    messedwith -= multiplier;
+    messedwith -= frameDeltaTime;
     if (rotxvel || rotx) {
         if (rotx > 0) {
-            rotxvel -= multiplier * 8 * fabs(rotx);
+            rotxvel -= frameDeltaTime * 8 * fabs(rotx);
         }
         if (rotx < 0) {
-            rotxvel += multiplier * 8 * fabs(rotx);
+            rotxvel += frameDeltaTime * 8 * fabs(rotx);
         }
         if (rotx > 0) {
-            rotxvel -= multiplier * 4;
+            rotxvel -= frameDeltaTime * 4;
         }
         if (rotx < 0) {
-            rotxvel += multiplier * 4;
+            rotxvel += frameDeltaTime * 4;
         }
         if (rotxvel > 0) {
-            rotxvel -= multiplier * 4;
+            rotxvel -= frameDeltaTime * 4;
         }
         if (rotxvel < 0) {
-            rotxvel += multiplier * 4;
+            rotxvel += frameDeltaTime * 4;
         }
-        if (fabs(rotx) < multiplier * 4) {
+        const float rotThreshold = std::max(frameDeltaTime * 4.0f, 0.001f);
+        if (fabs(rotx) < rotThreshold) {
             rotx = 0;
         }
-        if (fabs(rotxvel) < multiplier * 4) {
+        if (fabs(rotxvel) < rotThreshold) {
             rotxvel = 0;
         }
 
-        rotx += rotxvel * multiplier * 4;
+        rotx += rotxvel * frameDeltaTime * 4;
     }
     if (rotyvel || roty) {
         if (roty > 0) {
-            rotyvel -= multiplier * 8 * fabs(roty);
+            rotyvel -= frameDeltaTime * 8 * fabs(roty);
         }
         if (roty < 0) {
-            rotyvel += multiplier * 8 * fabs(roty);
+            rotyvel += frameDeltaTime * 8 * fabs(roty);
         }
         if (roty > 0) {
-            rotyvel -= multiplier * 4;
+            rotyvel -= frameDeltaTime * 4;
         }
         if (roty < 0) {
-            rotyvel += multiplier * 4;
+            rotyvel += frameDeltaTime * 4;
         }
         if (rotyvel > 0) {
-            rotyvel -= multiplier * 4;
+            rotyvel -= frameDeltaTime * 4;
         }
         if (rotyvel < 0) {
-            rotyvel += multiplier * 4;
+            rotyvel += frameDeltaTime * 4;
         }
-        if (fabs(roty) < multiplier * 4) {
+        const float rotyThreshold = std::max(frameDeltaTime * 4.0f, 0.001f);
+        if (fabs(roty) < rotyThreshold) {
             roty = 0;
         }
-        if (fabs(rotyvel) < multiplier * 4) {
+        if (fabs(rotyvel) < rotyThreshold) {
             rotyvel = 0;
         }
 
-        roty += rotyvel * multiplier * 4;
+        roty += rotyvel * frameDeltaTime * 4;
     }
     if (roty) {
         glRotatef(roty / divide, 1, 0, 0);
@@ -749,7 +753,8 @@ Object::Object(Json::Value value, float lastscale)
 {
 }
 
-Object::operator Json::Value() {
+Object::operator Json::Value()
+{
     Json::Value object;
 
     object[0] = type;

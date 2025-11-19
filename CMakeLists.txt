@@ -42,10 +42,10 @@ elseif(MINGW OR NOT WIN32) #not MSVC but could be Unix or MSYS2 or MINGW or CYGW
 endif() #check if WIN32
 
 if(APPLE)
-    set(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "Build architectures for OSX")
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.11" CACHE STRING
+    set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Build architectures for OSX (Universal Binary)")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING
         "Minimum OS X version to target for deployment (at runtime); newer APIs weak linked. Set to empty string for default value")
-    set(CMAKE_OSX_SYSROOT "/Developer/SDKs/MacOSX10.11.sdk" CACHE PATH
+    set(CMAKE_OSX_SYSROOT "" CACHE PATH
         "The product will be built against the headers and libraries located inside the indicated SDK.")
 endif()
 
@@ -72,8 +72,9 @@ if(LUGARU_VERSION_PATCH)
     set(LUGARU_VERSION_NUMBER "${LUGARU_VERSION_NUMBER}.${LUGARU_VERSION_PATCH}")
 endif()
 
-# Set to "" for stable (tagged) builds, "-dev" for dev builds
-set(LUGARU_VERSION_SUFFIX "-dev")  # development
+# Set to "" for stable (tagged) builds, "-dev" for dev builds, "-loupgarenne"
+set(LUGARU_VERSION_SUFFIX "-loupgarenne")  # Loupgarenne fork
+#set(LUGARU_VERSION_SUFFIX "-dev")  # development
 #set(LUGARU_VERSION_SUFFIX "")  # stable
 
 # Set to 7-char git commit hash if available, otherwise "".
@@ -268,6 +269,8 @@ pkg_check_modules(VORBIS vorbis REQUIRED)
 pkg_check_modules(OGG ogg REQUIRED)
 pkg_check_modules(JSONCPP jsoncpp REQUIRED)
 
+link_directories(${VORBISFILE_LIBRARY_DIRS} ${VORBIS_LIBRARY_DIRS} ${OGG_LIBRARY_DIRS} ${JSONCPP_LIBRARY_DIRS})
+
 include_directories(
     ${OPENAL_INCLUDE_DIR}
     ${JPEG_INCLUDE_DIR}
@@ -380,7 +383,6 @@ install(FILES ${CMAKE_SOURCE_DIR}/AUTHORS
               ${CMAKE_SOURCE_DIR}/CONTENT-LICENSE.txt
               ${CMAKE_SOURCE_DIR}/COPYING.txt
               ${CMAKE_SOURCE_DIR}/README.md
-              ${CMAKE_SOURCE_DIR}/RELEASE-NOTES.md
               ${CMAKE_SOURCE_DIR}/Docs/DEVTOOLS.txt
               ${CMAKE_SOURCE_DIR}/Docs/README.Empire.txt
               ${CMAKE_SOURCE_DIR}/Docs/README.SevenTasks.txt

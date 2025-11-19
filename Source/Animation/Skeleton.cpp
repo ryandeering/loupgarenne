@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -167,19 +168,19 @@ float Skeleton::DoConstraints(XYZ* coords, float* scale)
                 while (normaldotproduct(temp, lowforward) > -.1 && !sphere_line_intersection(&jointPos(righthip), &jointPos(rightankle), &jointPos(rightknee), &r)) {
                     jointPos(rightknee) -= lowforward * .05;
                     if (spinny) {
-                        jointVel(rightknee) -= lowforward * .05 / multiplier / 4;
+                        jointVel(rightknee) -= lowforward * .0125;
                     } else {
                         jointVel(rightknee) -= lowforward * .05;
                     }
                     jointPos(rightankle) += lowforward * .025;
                     if (spinny) {
-                        jointVel(rightankle) += lowforward * .025 / multiplier / 4;
+                        jointVel(rightankle) += lowforward * .00625;
                     } else {
                         jointVel(rightankle) += lowforward * .25;
                     }
                     jointPos(righthip) += lowforward * .025;
                     if (spinny) {
-                        jointVel(righthip) += lowforward * .025 / multiplier / 4;
+                        jointVel(righthip) += lowforward * .00625;
                     } else {
                         jointVel(righthip) += lowforward * .025;
                     }
@@ -193,19 +194,19 @@ float Skeleton::DoConstraints(XYZ* coords, float* scale)
                 while (normaldotproduct(temp, lowforward) > -.1 && !sphere_line_intersection(&jointPos(lefthip), &jointPos(leftankle), &jointPos(leftknee), &r)) {
                     jointPos(leftknee) -= lowforward * .05;
                     if (spinny) {
-                        jointVel(leftknee) -= lowforward * .05 / multiplier / 4;
+                        jointVel(leftknee) -= lowforward * .0125;
                     } else {
                         jointVel(leftknee) -= lowforward * .05;
                     }
                     jointPos(leftankle) += lowforward * .025;
                     if (spinny) {
-                        jointVel(leftankle) += lowforward * .025 / multiplier / 4;
+                        jointVel(leftankle) += lowforward * .00625;
                     } else {
                         jointVel(leftankle) += lowforward * .25;
                     }
                     jointPos(lefthip) += lowforward * .025;
                     if (spinny) {
-                        jointVel(lefthip) += lowforward * .025 / multiplier / 4;
+                        jointVel(lefthip) += lowforward * .00625;
                     } else {
                         jointVel(lefthip) += lowforward * .025;
                     }

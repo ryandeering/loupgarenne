@@ -19,5 +19,3 @@ along with Lugaru.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 LUGARU_ICON     ICON    "../Dist/Windows/Lugaru.ico"
-
-// TODO: Add version info

@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -46,6 +47,7 @@ extern bool musictoggle;
 extern int environment;
 extern bool ambientsound;
 extern float multiplier;
+extern float frameDeltaTime;
 extern int netdatanew;
 extern float mapinfo;
 extern bool stillloading;
@@ -191,7 +193,7 @@ void Game::LoadingScreen() {
         glClearColor(0, 0, 0, 1);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        loadtime += multiplier * 4;
+        loadtime += frameDeltaTime * 4;
 
         loadprogress = loadtime;
         if (loadprogress > 100) {
@@ -340,7 +342,7 @@ void Game::LoadingScreen() {
                 flashamount = 1;
             }
             if (flashdelay <= 0) {
-                flashamount -= multiplier;
+                flashamount -= frameDeltaTime;
             }
             flashdelay--;
             if (flashamount < 0) {

@@ -1,3 +1,6 @@
+(contents of this are outdated. I'll update later. - RD)
+(if you're that bothered, use the devcontainer. i'll add for Apple later as i'm just building natively on mac)
+
 # Compiling
 
 As it stands, the version of Lugaru in this repository supports Linux, OSX

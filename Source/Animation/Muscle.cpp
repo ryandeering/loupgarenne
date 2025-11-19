@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -166,27 +167,27 @@ void Muscle::DoConstraint(bool spinny)
 
     // relax muscle?
 
-    //Find midpoint
+    // Find midpoint
     XYZ midp = (parent1->position * parent1->mass + parent2->position * parent2->mass) / (parent1->mass + parent2->mass);
 
-    //Find vector from midpoint to second vector
+    // Find vector from midpoint to second vector
     XYZ vel = parent2->position - midp;
 
-    //Change to unit vector
+    // Change to unit vector
     Normalise(&vel);
 
-    //Apply velocity change
+    // Apply velocity change
     XYZ newpoint1 = midp - vel * length * (parent2->mass / (parent1->mass + parent2->mass));
     XYZ newpoint2 = midp + vel * length * (parent1->mass / (parent1->mass + parent2->mass));
     if (!freeze && spinny) {
-        parent1->velocity = parent1->velocity + (newpoint1 - parent1->position) / multiplier / 4;
-        parent2->velocity = parent2->velocity + (newpoint2 - parent2->position) / multiplier / 4;
+        parent1->velocity = parent1->velocity + (newpoint1 - parent1->position) * 0.25;
+        parent2->velocity = parent2->velocity + (newpoint2 - parent2->position) * 0.25;
     } else {
         parent1->velocity = parent1->velocity + (newpoint1 - parent1->position);
         parent2->velocity = parent2->velocity + (newpoint2 - parent2->position);
     }
 
-    //Move child point to within certain distance of parent point
+    // Move child point to within certain distance of parent point
     parent1->position = newpoint1;
     parent2->position = newpoint2;
 }

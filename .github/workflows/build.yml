@@ -1,0 +1,13 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, master, feature/* ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-common.yml
+    with:
+      create_archives: false

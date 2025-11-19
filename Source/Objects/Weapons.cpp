@@ -2,9 +2,11 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -30,6 +32,7 @@ along with Lugaru.  If not, see <http://www.gnu.org/licenses/>.
 #include "Tutorial.hpp"
 
 extern float multiplier;
+extern float frameDeltaTime;
 extern Terrain terrain;
 extern float gravity;
 extern int environment;
@@ -143,7 +146,7 @@ void Weapon::doStuff(int i)
     static XYZ midp;
     static XYZ newpoint1, newpoint2;
     static float friction = 3.5;
-    static float elasticity = .4;
+    static float elasticity = .05;
     static XYZ bounceness;
     static float frictionness;
     static float closestdistance;
@@ -422,7 +425,7 @@ void Weapon::doStuff(int i)
         }
     }
 
-    //Sword physics
+    // Sword physics
     XYZ mid;
     XYZ oldmid;
     XYZ oldmid2;
@@ -431,11 +434,11 @@ void Weapon::doStuff(int i)
     multiplier /= 10;
     for (int l = 0; l < 10; l++) {
         if (owner == -1 && (velocity.x || velocity.y || velocity.z) && physics) {
-            //move
+            // move
             position += velocity * multiplier;
             tippoint += tipvelocity * multiplier;
 
-            //Length constrain
+            // Length constrain
             midp = (position * mass + tippoint * tipmass) / (mass + tipmass);
             vel = tippoint - midp;
             Normalise(&vel);
@@ -450,7 +453,7 @@ void Weapon::doStuff(int i)
             position = newpoint1;
             tippoint = newpoint2;
 
-            //Object collisions
+            // Object collisions
             whichpatchx = (position.x) / (terrain.size / subdivision * terrain.scale);
             whichpatchz = (position.z) / (terrain.size / subdivision * terrain.scale);
             if (whichpatchx > 0 && whichpatchz > 0 && whichpatchx < subdivision && whichpatchz < subdivision) {
@@ -678,7 +681,7 @@ void Weapon::doStuff(int i)
                     }
                 }
             }
-            //Terrain collisions
+            // Terrain collisions
             whichhit = terrain.lineTerrain(oldposition, position, &colpoint);
             if (whichhit != -1 || position.y < terrain.getHeight(position.x, position.z)) {
                 hitsomething = 1;
@@ -719,8 +722,7 @@ void Weapon::doStuff(int i)
                     } else {
                         whichsound = footstepsound + abs(Random() % 2);
                     }
-                    emit_sound_at(whichsound, position,
-                                  findLengthfast(&bounceness) * (terrain.getOpacity(position.x, position.z) > .2 ? 128. : 32.));
+                    emit_sound_at(whichsound, position, findLengthfast(&bounceness) * (terrain.getOpacity(position.x, position.z) > .2 ? 128. : 32.));
 
                     if (terrain.getOpacity(position.x, position.z) < .2) {
                         XYZ terrainlight;
@@ -780,8 +782,7 @@ void Weapon::doStuff(int i)
                     } else {
                         whichsound = footstepsound + abs(Random() % 2);
                     }
-                    emit_sound_at(whichsound, tippoint,
-                                  findLengthfast(&bounceness) * (terrain.getOpacity(tippoint.x, tippoint.z) > .2 ? 128. : 32.));
+                    emit_sound_at(whichsound, tippoint, findLengthfast(&bounceness) * (terrain.getOpacity(tippoint.x, tippoint.z) > .2 ? 128. : 32.));
 
                     if (terrain.getOpacity(tippoint.x, tippoint.z) < .2) {
                         XYZ terrainlight;
@@ -803,7 +804,7 @@ void Weapon::doStuff(int i)
                 }
             }
 
-            //Edges
+            // Edges
             mid = position + tippoint;
             mid /= 2;
             mid += (position - mid) / 20;
@@ -814,7 +815,7 @@ void Weapon::doStuff(int i)
 
                 terrainnormal = terrain.getNormal(mid.x, mid.z);
                 ReflectVector(&velocity, &terrainnormal);
-                //mid+=terrainnormal*.002;
+                // mid+=terrainnormal*.002;
                 bounceness = terrainnormal * findLength(&velocity) * (abs(normaldotproduct(velocity, terrainnormal)));
                 if (findLengthfast(&velocity) < findLengthfast(&bounceness)) {
                     bounceness = 0;
@@ -844,10 +845,7 @@ void Weapon::doStuff(int i)
                     } else {
                         whichsound = footstepsound + abs(Random() % 2);
                     }
-                    emit_sound_at(whichsound, mid,
-                                  findLengthfast(&bounceness) * (terrain.getOpacity(position.x, position.z) > .2
-                                                                     ? 128.
-                                                                     : 32.));
+                    emit_sound_at(whichsound, mid, findLengthfast(&bounceness) * (terrain.getOpacity(position.x, position.z) > .2 ? 128. : 32.));
                 }
                 position += (mid - oldmid) * 20;
             }
@@ -862,7 +860,7 @@ void Weapon::doStuff(int i)
 
                 terrainnormal = terrain.getNormal(mid.x, mid.z);
                 ReflectVector(&tipvelocity, &terrainnormal);
-                //mid+=terrainnormal*.002;
+                // mid+=terrainnormal*.002;
                 bounceness = terrainnormal * findLength(&tipvelocity) * (abs(normaldotproduct(tipvelocity, terrainnormal)));
                 if (findLengthfast(&tipvelocity) < findLengthfast(&bounceness)) {
                     bounceness = 0;
@@ -892,18 +890,21 @@ void Weapon::doStuff(int i)
                     } else {
                         whichsound = footstepsound + abs(Random() % 2);
                     }
-                    emit_sound_at(whichsound, mid,
-                                  findLengthfast(&bounceness) * (terrain.getOpacity(position.x, position.z) > .2
-                                                                     ? 128.
-                                                                     : 32.));
+                    emit_sound_at(whichsound, mid, findLengthfast(&bounceness) * (terrain.getOpacity(position.x, position.z) > .2 ? 128. : 32.));
                 }
                 tippoint += (mid - oldmid) * 20;
             }
-            //Gravity
+            // Gravity
             velocity.y += gravity * multiplier;
             tipvelocity.y += gravity * multiplier;
 
-            //Rotation
+            // Apply additional damping after collision to prevent endless bouncing
+            if (hitsomething) {
+                velocity *= pow(0.1f, multiplier * 60.0f); // 90% energy loss per second, frame-rate independent
+                tipvelocity *= pow(0.1f, multiplier * 60.0f);
+            }
+
+            // Rotation
             XYZ temppoint1, temppoint2;
             float distance;
 
@@ -926,12 +927,17 @@ void Weapon::doStuff(int i)
                 rotation1 = 360 - rotation1;
             }
 
-            //Stop moving
-            if (findLengthfast(&velocity) < .3 && findLengthfast(&tipvelocity) < .3 && hitsomething) {
+            // Stop moving
+            //  Increased velocity threshold to stop bouncing sooner at high framerates
+            const float velocityStopThreshold = 0.5f; // Increased from .3
+            if (findLengthfast(&velocity) < velocityStopThreshold &&
+                findLengthfast(&tipvelocity) < velocityStopThreshold && hitsomething) {
                 freetime += multiplier;
             }
 
-            if (freetime > .4) {
+            // Reduced time threshold so weapons stop faster when dropped
+            const float freeTimeThreshold = 0.2f; // Reduced from .4 for faster settling
+            if (freetime > freeTimeThreshold) {
                 velocity = 0;
                 tipvelocity = 0;
             }
@@ -961,10 +967,10 @@ void Weapon::doStuff(int i)
         }
     }
     if (onfire) {
-        flamedelay -= multiplier;
+        flamedelay -= frameDeltaTime;
         if (onfire && flamedelay <= 0) {
             flamedelay = .020;
-            flamedelay -= multiplier;
+            flamedelay -= frameDeltaTime;
             normalrot = 0;
             if (owner != -1) {
                 normalrot = Person::players[owner]->velocity;
@@ -982,10 +988,10 @@ void Weapon::doStuff(int i)
     }
 
     if (!onfire && owner == -1 && type != staff) {
-        flamedelay -= multiplier;
+        flamedelay -= frameDeltaTime;
         if (flamedelay <= 0) {
             flamedelay = .020;
-            flamedelay -= multiplier;
+            flamedelay -= frameDeltaTime;
             normalrot = 0;
             if (Random() % 50 == 0 && distsq(&position, &viewer) > 80) {
                 XYZ shinepoint;
@@ -1000,7 +1006,7 @@ void Weapon::doStuff(int i)
 
 void Weapons::DoStuff()
 {
-    //Move
+    // Move
     int i = 0;
     for (std::vector<Weapon>::iterator weapon = begin(); weapon != end(); ++weapon) {
         weapon->doStuff(i++);

@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -30,6 +31,8 @@ along with Lugaru.  If not, see <http://www.gnu.org/licenses/>.
 #include "Utils/Folders.hpp"
 
 extern float multiplier;
+extern float frameDeltaTime;
+extern bool isFirstPhysicsTickOfFrame;
 extern Terrain terrain;
 extern float gravity;
 extern int environment;
@@ -694,7 +697,8 @@ int Person::getLandhard()
  * Break shared_ptr cycle. victim can point to another person
  * whose victim points to the first player.
  */
-void Person::clearVictims() {
+void Person::clearVictims()
+{
     for (auto& p : Person::players) {
         p->victim.reset();
         p->hasvictim = 0;
@@ -1016,7 +1020,7 @@ bool Person::DoBloodBigWhere(float howmuch, int which, XYZ where)
         if (!skeleton.free) {
             where = DoRotation(where, 0, -yaw, 0);
         }
-        //where=scale;
+        // where=scale;
         startpoint = where;
         startpoint.y += 100;
         endpoint = where;
@@ -1652,79 +1656,74 @@ void Person::DoHead()
 
     if (!freeze && !winfreeze) {
 
-        //head facing
-        targetheadyaw = (float)((int)((0 - yaw - targetheadyaw + 180) * 100) % 36000) / 100;
-        targetheadpitch = (float)((int)(targetheadpitch * 100) % 36000) / 100;
+        // Head tracking: only update once per frame (not every physics tick)
+        // The target calculation must only run once to avoid feedback loops
+        if (isFirstPhysicsTickOfFrame) {
+            // head facing - use fmod instead of int cast to avoid precision loss
+            targetheadyaw = fmod(0 - yaw - targetheadyaw + 180, 360.0f);
+            if (targetheadyaw < 0) targetheadyaw += 360.0f;
+            targetheadyaw -= 180.0f;
 
-        while (targetheadyaw > 180) {
-            targetheadyaw -= 360;
-        }
-        while (targetheadyaw < -180) {
-            targetheadyaw += 360;
-        }
+            // Normalize pitch without precision-losing int cast
+            targetheadpitch = fmod(targetheadpitch, 360.0f);
+            if (targetheadpitch > 180) targetheadpitch -= 360;
+            if (targetheadpitch < -180) targetheadpitch += 360;
 
-        if (targetheadyaw > 160) {
-            targetheadpitch = targetheadpitch * -1;
-        }
-        if (targetheadyaw < -160) {
-            targetheadpitch = targetheadpitch * -1;
-        }
-        if (targetheadyaw > 160) {
-            targetheadyaw = targetheadyaw - 180;
-        }
-        if (targetheadyaw < -160) {
-            targetheadyaw = targetheadyaw + 180;
-        }
-
-        if (targetheadpitch > 120) {
-            targetheadpitch = 120;
-        }
-        if (targetheadpitch < -120) {
-            targetheadpitch = -120;
-        }
-        if (targetheadyaw > 120) {
-            targetheadyaw = 120;
-        }
-        if (targetheadyaw < -120) {
-            targetheadyaw = -120;
-        }
-
-        if (!isIdle()) {
-            targetheadpitch = 0;
-        }
-        if (isIdle()) {
-            if (targetheadyaw > 80) {
-                targetheadyaw = 80;
+            if (targetheadyaw > 160) {
+                targetheadpitch = targetheadpitch * -1;
             }
-            if (targetheadyaw < -80) {
-                targetheadyaw = -80;
+            if (targetheadyaw < -160) {
+                targetheadpitch = targetheadpitch * -1;
             }
-            if (targetheadpitch > 50) {
-                targetheadpitch = 50;
+            if (targetheadyaw > 160) {
+                targetheadyaw = targetheadyaw - 180;
             }
-            if (targetheadpitch < -50) {
-                targetheadpitch = -50;
+            if (targetheadyaw < -160) {
+                targetheadyaw = targetheadyaw + 180;
             }
-        }
 
-        if (abs(headyaw - targetheadyaw) < multiplier * lookspeed) {
-            headyaw = targetheadyaw;
-        } else if (headyaw > targetheadyaw) {
-            headyaw -= multiplier * lookspeed;
-        } else if (headyaw < targetheadyaw) {
-            headyaw += multiplier * lookspeed;
-        }
+            if (targetheadpitch > 120) {
+                targetheadpitch = 120;
+            }
+            if (targetheadpitch < -120) {
+                targetheadpitch = -120;
+            }
+            if (targetheadyaw > 120) {
+                targetheadyaw = 120;
+            }
+            if (targetheadyaw < -120) {
+                targetheadyaw = -120;
+            }
 
-        if (abs(headpitch - targetheadpitch) < multiplier * lookspeed / 2) {
-            headpitch = targetheadpitch;
-        } else if (headpitch > targetheadpitch) {
-            headpitch -= multiplier * lookspeed / 2;
-        } else if (headpitch < targetheadpitch) {
-            headpitch += multiplier * lookspeed / 2;
-        }
+            if (!isIdle()) {
+                targetheadpitch = 0;
+            }
+            if (isIdle()) {
+                if (targetheadyaw > 80) {
+                    targetheadyaw = 80;
+                }
+                if (targetheadyaw < -80) {
+                    targetheadyaw = -80;
+                }
+                if (targetheadpitch > 50) {
+                    targetheadpitch = 50;
+                }
+                if (targetheadpitch < -50) {
+                    targetheadpitch = -50;
+                }
+            }
 
-        rotatearound = jointPos(neck);
-        jointPos(head) = rotatearound + DoRotation(jointPos(head) - rotatearound, headpitch, 0, 0);
+            // Use exponential damping for smooth, frame-rate independent head movement
+            // Note: actual rotation is applied in ApplyHeadRotation() after DoAnimations()
+            // Exponential damping: lerp factor = 1 - smoothing^dt
+            // smoothing = 0.05 gives nice smooth tracking
+            float smoothing = 0.05f;
+            float dt = frameDeltaTime * 60.0f; // Normalize to 60fps reference
+            float lerpFactor = 1.0f - pow(smoothing, dt);
+
+            headyaw = headyaw + (targetheadyaw - headyaw) * lerpFactor;
+            headpitch = headpitch + (targetheadpitch - headpitch) * lerpFactor;
+        }
 
         facing = 0;
         facing.z = -1;
@@ -1744,12 +1743,26 @@ void Person::DoHead()
         }
 
         skeleton.specialforward[0] = facing;
-        //skeleton.specialforward[0]=DoRotation(facing,0,yaw,0);
+        // skeleton.specialforward[0]=DoRotation(facing,0,yaw,0);
         for (unsigned i = 0; i < skeleton.muscles.size(); i++) {
             if (skeleton.muscles[i].visible && (skeleton.muscles[i].parent1->label == head || skeleton.muscles[i].parent2->label == head)) {
                 skeleton.FindRotationMuscle(i, animTarget);
             }
         }
+    }
+}
+
+/* EFFECT
+ * applies head rotation to head joint
+ * called after DoAnimations() to prevent being overwritten by animation system
+ */
+void Person::ApplyHeadRotation()
+{
+    // Skip if frozen, no skeleton, or ragdolled (skeleton.free)
+    if (!freeze && !winfreeze && skeleton.joints.size() > 0 && !skeleton.free) {
+        static XYZ rotatearound;
+        rotatearound = jointPos(neck);
+        jointPos(head) = rotatearound + DoRotation(jointPos(head) - rotatearound, headpitch, headyaw, 0);
     }
 }
 
@@ -2110,8 +2123,7 @@ void Person::DoAnimations()
                         victim->spurt = 1;
                         victim->DoBloodBig(1 / victim->armorhead, 210);
                     }
-                    award_bonus(id, TackleBonus,
-                                victim->aitype == gethelptype ? 50 : 0);
+                    award_bonus(id, TackleBonus, victim->aitype == gethelptype ? 50 : 0);
                 }
             }
 
@@ -2127,7 +2139,7 @@ void Person::DoAnimations()
                 }
                 drawtogglekeydown = 1;
             }
-            //Footstep sounds
+            // Footstep sounds
             if (!Tutorial::active || id == 0) {
                 if ((targetFrame().label && (targetFrame().label < 5 || targetFrame().label == 8))) {
                     int whichsound = -1;
@@ -2208,7 +2220,7 @@ void Person::DoAnimations()
                 }
             }
 
-            //Combat sounds
+            // Combat sounds
             if (!Tutorial::active || id == 0) {
                 if (speechdelay <= 0) {
                     if (animTarget != crouchstabanim && animTarget != swordgroundstabanim && animTarget != staffgroundsmashanim) {
@@ -2295,7 +2307,7 @@ void Person::DoAnimations()
                                         victim->num_weapons = 1;
                                     }
 
-                                    //victim->weaponactive=-1;
+                                    // victim->weaponactive=-1;
                                     victim->skeleton.longdead = 0;
                                     victim->skeleton.free = 1;
                                     victim->skeleton.broken = 0;
@@ -2438,7 +2450,7 @@ void Person::DoAnimations()
                 }
             }
 
-            //Move impacts
+            // Move impacts
             float damagemult = PersonType::types[creature].power * power;
             if (hasvictim) {
                 damagemult /= victim->damagetolerance / 200;
@@ -2633,7 +2645,7 @@ void Person::DoAnimations()
                             victim->skeleton.joints[i].velchange = 0;
                             victim->skeleton.joints[i].delay = 0;
                             victim->skeleton.joints[i].locked = 0;
-                            //victim->skeleton.joints[i].velocity=0;
+                            // victim->skeleton.joints[i].velocity=0;
                         }
 
                         XYZ relative;
@@ -2694,7 +2706,7 @@ void Person::DoAnimations()
 
                         for (unsigned i = 0; i < victim->skeleton.joints.size(); i++) {
                             victim->skeleton.joints[i].velchange = 0;
-                            //victim->skeleton.joints[i].delay=0;
+                            // victim->skeleton.joints[i].delay=0;
                             victim->skeleton.joints[i].locked = 0;
                         }
                         XYZ relative;
@@ -2744,7 +2756,7 @@ void Person::DoAnimations()
                                 if (!victim->skeleton.free) {
                                     where = DoRotation(where, 0, -victim->yaw, 0);
                                 }
-                                //where=scale;
+                                // where=scale;
                                 startpoint = where;
                                 startpoint.y += 100;
                                 endpoint = where;
@@ -2800,7 +2812,7 @@ void Person::DoAnimations()
                                 for (unsigned i = 0; i < victim->skeleton.joints.size(); i++) {
                                     victim->skeleton.joints[i].velchange = 0;
                                     victim->skeleton.joints[i].locked = 0;
-                                    //victim->skeleton.joints[i].velocity=0;
+                                    // victim->skeleton.joints[i].velocity=0;
                                 }
                                 emit_sound_at(fleshstabsound, coords, 128);
                             }
@@ -2893,14 +2905,14 @@ void Person::DoAnimations()
                                 for (unsigned i = 0; i < victim->skeleton.joints.size(); i++) {
                                     victim->skeleton.joints[i].velchange = 0;
                                     victim->skeleton.joints[i].locked = 0;
-                                    //victim->skeleton.joints[i].velocity=0;
+                                    // victim->skeleton.joints[i].velocity=0;
                                 }
 
                                 XYZ relative;
                                 relative = 0;
                                 relative.y = 10;
                                 Normalise(&relative);
-                                //victim->Puff(abdomen);
+                                // victim->Puff(abdomen);
                                 if (bloodtoggle) {
                                     Sprite::MakeSprite(cloudimpactsprite, footpoint, footvel, 1, 0, 0, .8, .3);
                                 }
@@ -3037,7 +3049,7 @@ void Person::DoAnimations()
                             }
                         }
 
-                        //Puff(righthand);
+                        // Puff(righthand);
                     }
                 }
 
@@ -3068,7 +3080,7 @@ void Person::DoAnimations()
                             if (!Tutorial::active) {
                                 emit_sound_at(knifeslicesound, victim->coords);
                             }
-                            //victim->jointVel(abdomen)+=relative*damagemult*200;
+                            // victim->jointVel(abdomen)+=relative*damagemult*200;
                             if (Animation::animations[victim->animTarget].attack && (!victim->isPlayerControlled() || victim->animTarget == knifeslashstartanim) && (victim->creature == rabbittype || victim->deathbleeding <= 0)) {
                                 if (victim->id != 0 || difficulty == 2) {
                                     victim->frameTarget = 0;
@@ -3288,7 +3300,7 @@ void Person::DoAnimations()
                         for (unsigned i = 0; i < victim->skeleton.joints.size(); i++) {
                             victim->skeleton.joints[i].velchange = 0;
                             victim->skeleton.joints[i].locked = 0;
-                            //victim->skeleton.joints[i].velocity=0;
+                            // victim->skeleton.joints[i].velocity=0;
                         }
 
                         victim->RagDoll(0);
@@ -3891,7 +3903,7 @@ void Person::DoAnimations()
                 }
             }
 
-            //Animation end
+            // Animation end
             if (frameTarget >= int(Animation::animations[animCurrent].frames.size())) {
                 frameTarget = 0;
                 if (wasStop()) {
@@ -4034,7 +4046,7 @@ void Person::DoAnimations()
                     if (animTarget == walljumpfrontanim) {
                         animTarget = frontflipanim;
                         frameTarget = 2;
-                        //targetyaw-=180;
+                        // targetyaw-=180;
                         ////yaw-=180;
                         velocity = facing * 8;
                         velocity.y = 4;
@@ -4212,7 +4224,7 @@ void Person::DoAnimations()
                     oldcoords = coords;
                     coords += (DoRotation(jointPos(leftfoot), 0, yaw, 0) + DoRotation(jointPos(rightfoot), 0, yaw, 0)) / 2 * scale;
                     coords.y = oldcoords.y;
-                    //coords+=DoRotation(Animation::animations[animCurrent].offset,0,yaw,0)*scale;
+                    // coords+=DoRotation(Animation::animations[animCurrent].offset,0,yaw,0)*scale;
                     targetoffset.y = coords.y;
                     if (onterrain) {
                         targetoffset.y = terrain.getHeight(coords.x, coords.z);
@@ -4248,7 +4260,7 @@ void Person::DoAnimations()
                     if (!feint) {
                         velocity = 0;
                         velocity.y = -10;
-                        //DoDamage(100);
+                        // DoDamage(100);
                         RagDoll(0);
                         skeleton.spinny = 0;
                         SolidHitBonus(!id); // FIXME: tricky id
@@ -4273,7 +4285,7 @@ void Person::DoAnimations()
                     if (!feint) {
                         velocity = 0;
                         velocity.y = -10;
-                        //DoDamage(100);
+                        // DoDamage(100);
                         RagDoll(0);
                         skeleton.spinny = 0;
                         SolidHitBonus(!id); // FIXME: tricky id
@@ -4375,7 +4387,7 @@ void Person::DoAnimations()
             }
 
             if (animCurrent != oldanimCurrent || animTarget != oldanimTarget || ((frameCurrent != oldframeCurrent || frameTarget != oldframeTarget) && !calcrot)) {
-                //Old rotates
+                // Old rotates
                 for (unsigned i = 0; i < skeleton.joints.size(); i++) {
                     skeleton.joints[i].position = currentFrame().joints[i].position;
                 }
@@ -4401,7 +4413,7 @@ void Person::DoAnimations()
                     }
                 }
 
-                //New rotates
+                // New rotates
                 for (unsigned i = 0; i < skeleton.joints.size(); i++) {
                     skeleton.joints[i].position = targetFrame().joints[i].position;
                 }
@@ -4722,8 +4734,8 @@ void Person::DoStuff()
 
         startx = 0;
         starty = 0;
-        startx = bleedy; //abs(Random()%(skeleton.skinsize-bloodsize-1));
-        starty = bleedx; //abs(Random()%(skeleton.skinsize-bloodsize-1));
+        startx = bleedy; // abs(Random()%(skeleton.skinsize-bloodsize-1));
+        starty = bleedx; // abs(Random()%(skeleton.skinsize-bloodsize-1));
         endx = startx + bloodsize;
         endy = starty + bloodsize;
 
@@ -5031,7 +5043,7 @@ void Person::DoStuff()
 
     if (dead == 1 || howactive == typesleeping) {
         unconscioustime += multiplier;
-        //If unconscious, close eyes and mouth
+        // If unconscious, close eyes and mouth
         if (righthandmorphend != 0) {
             righthandmorphness = 0;
         }
@@ -5069,7 +5081,7 @@ void Person::DoStuff()
     }
 
     if (dead == 2 || howactive > typesleeping) {
-        //If dead, open mouth and hands
+        // If dead, open mouth and hands
         if (righthandmorphend != 0) {
             righthandmorphness = 0;
         }
@@ -5207,7 +5219,7 @@ void Person::DoStuff()
         }
 
         if (!dead) {
-            //If knocked over, open hands and close mouth
+            // If knocked over, open hands and close mouth
             if (righthandmorphend != 0) {
                 righthandmorphness = 0;
             }
@@ -5493,7 +5505,7 @@ void Person::DoStuff()
                 if (velocity.z < 0) {
                     targetyaw = 180 - targetyaw;
                 }
-                //targetyaw+=180;
+                // targetyaw+=180;
 
                 skeleton.free = 0;
                 if (dotproduct(&skeleton.forward, &tempvelocity) < 0) {
@@ -5751,7 +5763,7 @@ void Person::DoStuff()
         }
 
         if (animTarget == bounceidleanim || animTarget == wolfidle || animTarget == walkanim || animTarget == drawrightanim || animTarget == crouchdrawrightanim || animTarget == drawleftanim || animTarget == fightidleanim || animTarget == fightsidestep || animTarget == hanganim || isCrouch() || animTarget == backhandspringanim) {
-            //open hands and close mouth
+            // open hands and close mouth
             if (righthandmorphend != 0 && righthandmorphness == targetrighthandmorphness) {
                 righthandmorphness = 0;
                 righthandmorphend = 0;
@@ -5772,7 +5784,7 @@ void Person::DoStuff()
         }
 
         if (animTarget == rollanim || animTarget == dodgebackanim || animTarget == removeknifeanim || animTarget == knifefightidleanim || animTarget == swordfightidleanim || animTarget == blockhighleftstrikeanim || animTarget == crouchremoveknifeanim || animTarget == sneakanim || animTarget == sweepanim || animTarget == spinkickreversedanim || animTarget == jumpdownanim || isWallJump() || isFlip() || animTarget == climbanim || isRun() || animTarget == getupfrombackanim || animTarget == getupfromfrontanim) {
-            //open hands and mouth
+            // open hands and mouth
             if (righthandmorphend != 0 && righthandmorphness == targetrighthandmorphness) {
                 righthandmorphness = 0;
                 righthandmorphend = 0;
@@ -5793,7 +5805,7 @@ void Person::DoStuff()
         }
 
         if (animTarget == jumpupanim || animTarget == crouchstabanim || animTarget == swordgroundstabanim || animTarget == swordfightidlebothanim || animTarget == blockhighleftanim) {
-            //close hands and mouth
+            // close hands and mouth
             if (righthandmorphend != 1 && righthandmorphness == targetrighthandmorphness) {
                 righthandmorphness = 0;
                 righthandmorphend = 1;
@@ -5843,7 +5855,7 @@ void Person::DoStuff()
             animTarget == rabbitkickreversedanim ||
             animTarget == jumpreversalanim ||
             animTarget == jumpreversedanim) {
-            //close hands and yell
+            // close hands and yell
             if (righthandmorphend != 1 &&
                 righthandmorphness == targetrighthandmorphness) {
                 righthandmorphness = 0;
@@ -5879,7 +5891,7 @@ void Person::DoStuff()
             if (behind || animTarget == killanim || animTarget == knifethrowanim || animTarget == knifefollowanim || animTarget == spinkickreversalanim || animTarget == rabbitkickreversedanim || animTarget == jumpreversedanim) {
                 if (headmorphend != 4 || headmorphness == targetheadmorphness) {
                     headmorphend = 4;
-                    //headmorphness=1;
+                    // headmorphness=1;
                     targetheadmorphness = 1;
                 }
             }
@@ -5975,7 +5987,7 @@ void Person::DoStuff()
             targettilt2 = 0;
         }
 
-        //Running velocity
+        // Running velocity
         if (animTarget == rabbittackleanim) {
             velocity += facing * multiplier * speed * 700 * scale;
             velspeed = findLength(&velocity);
@@ -6100,7 +6112,7 @@ void Person::DoStuff()
         }
 
         if (animTarget == backhandspringanim) {
-            //coords-=facing*multiplier*50*scale;
+            // coords-=facing*multiplier*50*scale;
             velocity += facing * multiplier * speed * 700 * scale * -1;
             velspeed = findLength(&velocity);
             if (velspeed > speed * 50 * scale) {
@@ -6114,7 +6126,7 @@ void Person::DoStuff()
             velocity = flatfacing * velspeed * -1;
         }
         if (animTarget == dodgebackanim) {
-            //coords-=facing*multiplier*50*scale;
+            // coords-=facing*multiplier*50*scale;
             velocity += facing * multiplier * speed * 700 * scale * -1;
             velspeed = findLength(&velocity);
             if (velspeed > speed * 60 * scale) {
@@ -6396,6 +6408,8 @@ int Person::DrawSkeleton()
                 }
             }
 
+            // Update head once per frame (DrawSkeleton runs during rendering, after physics)
+            // No isFirstPhysicsTickOfFrame guard needed - DrawSkeleton already runs once per frame
             if (!skeleton.free && (!Animation::animations[animTarget].attack && animTarget != getupfrombackanim && ((animTarget != rollanim && !isFlip()) || targetFrame().label == 6) && animTarget != getupfromfrontanim && animTarget != wolfrunninganim && animTarget != rabbitrunninganim && animTarget != backhandspringanim && animTarget != walljumpfrontanim && animTarget != hurtidleanim && !isLandhard() && !isSleeping())) {
                 DoHead();
             } else {
@@ -6826,9 +6840,9 @@ int Person::DrawSkeleton()
                                 weaponrotatemuscle = j;
                             }
                         }
-                        //weaponpoint=jointPos(rightwrist);
+                        // weaponpoint=jointPos(rightwrist);
                         weaponpoint = (skeleton.muscles[weaponattachmuscle].parent1->position + skeleton.muscles[weaponattachmuscle].parent2->position) / 2;
-                        //weaponpoint+=skeleton.specialforward[1]*.1+(jointPos(rightwrist)-jointPos(rightelbow));
+                        // weaponpoint+=skeleton.specialforward[1]*.1+(jointPos(rightwrist)-jointPos(rightelbow));
                         XYZ tempnormthing, vec1, vec2;
                         vec1 = (jointPos(rightwrist) - jointPos(rightelbow));
                         vec2 = (jointPos(rightwrist) - jointPos(rightshoulder));
@@ -6933,7 +6947,7 @@ int Person::DrawSkeleton()
                         }
                         if (animTarget == knifethrowanim) {
                             weapons[i].smallrotation = 90;
-                            //weapons[i].smallrotation2=-90;
+                            // weapons[i].smallrotation2=-90;
                             weapons[i].smallrotation2 = 0;
                             weapons[i].rotation1 = 0;
                             weapons[i].rotation2 = 0;
@@ -6960,7 +6974,7 @@ int Person::DrawSkeleton()
                             XYZ temppoint1, temppoint2;
                             float distance;
 
-                            temppoint1 = currentFrame().joints[skeleton.jointlabels[righthand]].position * (1 - target) + targetFrame().joints[skeleton.jointlabels[righthand]].position * (target); //jointPos(righthand);
+                            temppoint1 = currentFrame().joints[skeleton.jointlabels[righthand]].position * (1 - target) + targetFrame().joints[skeleton.jointlabels[righthand]].position * (target); // jointPos(righthand);
                             temppoint2 = currentFrame().weapontarget * (1 - target) + targetFrame().weapontarget * (target);
                             distance = findDistance(&temppoint1, &temppoint2);
                             weapons[i].rotation2 = asin((temppoint1.y - temppoint2.y) / distance);
@@ -6984,7 +6998,7 @@ int Person::DrawSkeleton()
                             XYZ temppoint1, temppoint2;
                             float distance;
 
-                            temppoint1 = currentFrame().joints[skeleton.jointlabels[righthand]].position * (1 - target) + targetFrame().joints[skeleton.jointlabels[righthand]].position * (target); //jointPos(righthand);
+                            temppoint1 = currentFrame().joints[skeleton.jointlabels[righthand]].position * (1 - target) + targetFrame().joints[skeleton.jointlabels[righthand]].position * (target); // jointPos(righthand);
                             temppoint2 = currentFrame().weapontarget * (1 - target) + targetFrame().weapontarget * (target);
                             distance = findDistance(&temppoint1, &temppoint2);
                             weapons[i].rotation2 = asin((temppoint1.y - temppoint2.y) / distance);
@@ -7081,17 +7095,20 @@ int Person::SphereCheck(XYZ* p1, float radius, XYZ* p, XYZ* move, float* rotate,
                     if (!intersecting) {
                         intersecting = sphere_line_intersection(&model->vertex[model->Triangles[j].vertex[0]],
                                                                 &model->vertex[model->Triangles[j].vertex[1]],
-                                                                p1, &radius);
+                                                                p1,
+                                                                &radius);
                     }
                     if (!intersecting) {
                         intersecting = sphere_line_intersection(&model->vertex[model->Triangles[j].vertex[1]],
                                                                 &model->vertex[model->Triangles[j].vertex[2]],
-                                                                p1, &radius);
+                                                                p1,
+                                                                &radius);
                     }
                     if (!intersecting) {
                         intersecting = sphere_line_intersection(&model->vertex[model->Triangles[j].vertex[0]],
                                                                 &model->vertex[model->Triangles[j].vertex[2]],
-                                                                p1, &radius);
+                                                                p1,
+                                                                &radius);
                     }
                     end = *p1 - point;
                     if (dotproduct(&model->Triangles[j].facenormal, &end) > 0 && intersecting) {
@@ -7275,12 +7292,12 @@ bool Person::addClothes(const int& clothesId)
 
     GLubyte* array = &skeleton.skinText[0];
 
-    //Load Image
+    // Load Image
     ImageRec texture;
     bool opened = load_image(Folders::getResourcePath(fileName).c_str(), texture);
 
     float alphanum;
-    //Is it valid?
+    // Is it valid?
     if (opened) {
         float tintr = clothestintr[clothesId];
         float tintg = clothestintg[clothesId];
@@ -7340,7 +7357,7 @@ void Person::doAI()
 {
     if (!isPlayerControlled() && !Dialog::inDialog()) {
         jumpclimb = 0;
-        //disable movement in editor
+        // disable movement in editor
         if (Game::editorenabled) {
             stunned = 1;
         }
@@ -7352,7 +7369,7 @@ void Person::doAI()
             pause = 1;
         }
 
-        //pathfinding
+        // pathfinding
         if (aitype == pathfindtype) {
             if (finalpathfindpoint == -1) {
                 float closestdistance;
@@ -7456,7 +7473,7 @@ void Person::doAI()
             targetyaw = roughDirectionTo(coords, Game::pathpoint[targetpathfindpoint]);
             lookyaw = targetyaw;
 
-            //reached target point
+            // reached target point
             if (distsqflat(&coords, &Game::pathpoint[targetpathfindpoint]) < .6) {
                 lastpathfindpoint4 = lastpathfindpoint3;
                 lastpathfindpoint3 = lastpathfindpoint2;
@@ -7615,7 +7632,7 @@ void Person::doAI()
                 jumpkeydown = 1;
             }
 
-            //hearing sounds
+            // hearing sounds
             if (!Game::editorenabled) {
                 if (howactive <= typesleeping) {
                     if (numenvsounds > 0 && (!Tutorial::active || cananger) && hostile) {
@@ -7650,7 +7667,7 @@ void Person::doAI()
                     aitype = attacktypecutoff;
                 }
 
-                //wolf smell
+                // wolf smell
                 if (creature == wolftype) {
                     XYZ windsmell;
                     for (unsigned j = 0; j < Person::players.size(); j++) {
@@ -7716,7 +7733,7 @@ void Person::doAI()
                     }
                 }
             }
-            //alerted surprise
+            // alerted surprise
             if (aitype == attacktypecutoff && Game::musictype != 2) {
                 if (creature != wolftype) {
                     stunned = .6;
@@ -7730,7 +7747,7 @@ void Person::doAI()
             }
         }
 
-        //search for player
+        // search for player
         int j;
         if (aitype == searchtype) {
             aiupdatedelay -= multiplier;
@@ -7755,7 +7772,7 @@ void Person::doAI()
                         setTargetAnimation(getStop());
                         targetyaw += 180;
                         stunned = .5;
-                        //aitype=passivetype;
+                        // aitype=passivetype;
                         aitype = pathfindtype;
                         finalfinaltarget = waypoints[waypoint];
                         finalpathfindpoint = -1;
@@ -7769,7 +7786,7 @@ void Person::doAI()
                     }
                 }
             }
-            //check out last seen location
+            // check out last seen location
             if (aiupdatedelay < 0) {
                 targetyaw = roughDirectionTo(coords, lastseen);
                 lookyaw = targetyaw;
@@ -7835,7 +7852,7 @@ void Person::doAI()
                     lastseentime = 1;
                 }
                 if (abs(Random() % 2) || Animation::animations[animTarget].height != lowheight) {
-                    //TODO: factor out canSeePlayer()
+                    // TODO: factor out canSeePlayer()
                     if (distsq(&coords, &Person::players[0]->coords) < 400) {
                         if (normaldotproduct(facing, Person::players[0]->coords - coords) > 0) {
                             if ((Object::checkcollide(
@@ -7857,9 +7874,9 @@ void Person::doAI()
                     }
                 }
             }
-            //player escaped
+            // player escaped
             if (lastseentime < 0) {
-                //aitype=passivetype;
+                // aitype=passivetype;
                 numescaped++;
                 aitype = pathfindtype;
                 finalfinaltarget = waypoints[waypoint];
@@ -7876,7 +7893,7 @@ void Person::doAI()
             runninghowlong = 0;
         }
 
-        //get help from buddies
+        // get help from buddies
         if (aitype == gethelptype) {
             runninghowlong += multiplier;
             aiupdatedelay -= multiplier;
@@ -7884,8 +7901,8 @@ void Person::doAI()
             if (aiupdatedelay < 0 || ally == 0) {
                 aiupdatedelay = .2;
 
-                //find closest ally
-                //TODO: factor out closest search somehow
+                // find closest ally
+                // TODO: factor out closest search somehow
                 if (!ally) {
                     int closest = -1;
                     float closestdist = -1;
@@ -7920,7 +7937,7 @@ void Person::doAI()
                     lastseentime -= .1;
                 }
 
-                //no available ally, run back to player
+                // no available ally, run back to player
                 if (ally <= 0 ||
                     Person::players[ally]->skeleton.free ||
                     Person::players[ally]->aitype != passivetype ||
@@ -7929,7 +7946,7 @@ void Person::doAI()
                     lastseentime = 12;
                 }
 
-                //seek out ally
+                // seek out ally
                 if (ally > 0) {
                     targetyaw = roughDirectionTo(coords, Person::players[ally]->coords);
                     lookyaw = targetyaw;
@@ -7980,7 +7997,7 @@ void Person::doAI()
             }
         }
 
-        //retreiving a weapon on the ground
+        // retreiving a weapon on the ground
         if (aitype == getweapontype) {
             aiupdatedelay -= multiplier;
             lastchecktime -= multiplier;
@@ -7988,7 +8005,7 @@ void Person::doAI()
             if (aiupdatedelay < 0) {
                 aiupdatedelay = .2;
 
-                //ALLY IS WEPON
+                // ALLY IS WEPON
                 if (ally < 0) {
                     int closest = -1;
                     float closestdist = -1;
@@ -8023,7 +8040,7 @@ void Person::doAI()
                             aitype = attacktypecutoff;
                             lastseentime = 1;
                         }
-                        //TODO: factor these out as moveToward()
+                        // TODO: factor these out as moveToward()
                         targetyaw = roughDirectionTo(coords, weapons[ally].position);
                         lookyaw = targetyaw;
                         aiupdatedelay = .05;
@@ -8071,7 +8088,7 @@ void Person::doAI()
 
         if (aitype == attacktypecutoff) {
             aiupdatedelay -= multiplier;
-            //dodge or reverse rabbit kicks, knife throws, flips
+            // dodge or reverse rabbit kicks, knife throws, flips
             if (damage < damagetolerance * 2 / 3) {
                 if ((Person::players[0]->animTarget == rabbitkickanim ||
                      Person::players[0]->animTarget == knifethrowanim ||
@@ -8103,7 +8120,7 @@ void Person::doAI()
                     aiupdatedelay = .02;
                 }
             }
-            //get confused by flips
+            // get confused by flips
             if (Person::players[0]->isFlip() &&
                 !Person::players[0]->skeleton.free &&
                 Person::players[0]->animTarget != walljumprightkickanim &&
@@ -8114,7 +8131,7 @@ void Person::doAI()
                     }
                 }
             }
-            //go for weapon on the ground
+            // go for weapon on the ground
             if (wentforweapon < 3) {
                 for (unsigned k = 0; k < weapons.size(); k++) {
                     if (creature != wolftype) {
@@ -8133,7 +8150,7 @@ void Person::doAI()
                     }
                 }
             }
-            //dodge/reverse walljump kicks
+            // dodge/reverse walljump kicks
             if (damage < damagetolerance / 2) {
                 if (Animation::animations[animTarget].height != highheight) {
                     if (damage < damagetolerance * .5 &&
@@ -8147,7 +8164,7 @@ void Person::doAI()
                     }
                 }
             }
-            //walked off a ledge (?)
+            // walked off a ledge (?)
             if (isRun() && !onground) {
                 if (coords.y > terrain.getHeight(coords.x, coords.z) + 10) {
                     XYZ test2 = coords + facing;
@@ -8176,7 +8193,7 @@ void Person::doAI()
                     }
                 }
             }
-            //lose sight of player in the air (?)
+            // lose sight of player in the air (?)
             if (Person::players[0]->coords.y > coords.y + 5 &&
                 Animation::animations[Person::players[0]->animTarget].height != highheight &&
                 !Person::players[0]->onterrain) {
@@ -8189,21 +8206,21 @@ void Person::doAI()
                 lastpathfindpoint3 = -1;
                 lastpathfindpoint4 = -1;
             }
-            //it's time to think (?)
+            // it's time to think (?)
             if (aiupdatedelay < 0 &&
                 !Animation::animations[animTarget].attack &&
                 animTarget != staggerbackhighanim &&
                 animTarget != staggerbackhardanim &&
                 animTarget != backhandspringanim &&
                 animTarget != dodgebackanim) {
-                //draw weapon
+                // draw weapon
                 if (!hasWeapon() && num_weapons > 0) {
                     drawkeydown = Random() % 2;
                 } else {
                     drawkeydown = 0;
                 }
                 rabbitkickenabled = Random() % 2;
-                //chase player
+                // chase player
                 XYZ rotatetarget = Person::players[0]->coords + Person::players[0]->velocity;
                 XYZ targetpoint = Person::players[0]->coords;
                 float vellength = findLength(&velocity);
@@ -8227,7 +8244,7 @@ void Person::doAI()
                 } else {
                     forwardkeydown = 0;
                 }
-                //chill out around the corpse
+                // chill out around the corpse
                 if (Person::players[0]->dead) {
                     forwardkeydown = 0;
                     if (Random() % 10 == 0) {
@@ -8253,7 +8270,7 @@ void Person::doAI()
                 if (avoidcollided > .8 && !jumpkeydown && collided < .8) {
                     targetyaw += 90 * (whichdirection * 2 - 1);
                 }
-                //attack!!!
+                // attack!!!
                 if (Random() % 2 == 0 || hasWeapon() || creature == wolftype) {
                     attackkeydown = 1;
                 } else {
@@ -8263,7 +8280,7 @@ void Person::doAI()
                     attackkeydown = 0;
                 }
 
-                //TODO: wat
+                // TODO: wat
                 if (!isPlayerControlled() &&
                     (isIdle() ||
                      isCrouch() ||
@@ -8320,7 +8337,7 @@ void Person::doAI()
                         creature == rabbittype) {
                     jumpkeydown = 1;
                 }
-                //TODO: why are we controlling the human?
+                // TODO: why are we controlling the human?
                 if (normaldotproduct(facing, Person::players[0]->coords - coords) > 0) {
                     Person::players[0]->jumpkeydown = 0;
                 }
@@ -8372,7 +8389,7 @@ void Person::doAI()
                 }
             }
         }
-        //stunned
+        // stunned
         if (aitype == passivetype && !(numwaypoints > 1) ||
             stunned > 0 ||
             pause && damage > superpermanentdamage) {
@@ -8420,9 +8437,8 @@ void Person::doAI()
 
 bool Person::catchKnife()
 {
-    return
-        ((PersonType::types[creature].knifeCatchingType == 0) && (Random() % 2 != 0) && (!hasWeapon()) && (aitype == attacktypecutoff)) ||
-        ((PersonType::types[creature].knifeCatchingType == 1) && (Random() % 3 != 0) && (!hasWeapon()) && (isIdle() || isRun() || animTarget == walkanim));
+    return ((PersonType::types[creature].knifeCatchingType == 0) && (Random() % 2 != 0) && (!hasWeapon()) && (aitype == attacktypecutoff)) ||
+           ((PersonType::types[creature].knifeCatchingType == 1) && (Random() % 3 != 0) && (!hasWeapon()) && (isIdle() || isRun() || animTarget == walkanim));
 }
 
 Person::Person(Json::Value value, int /*mapvers*/, unsigned i)
@@ -8430,26 +8446,26 @@ Person::Person(Json::Value value, int /*mapvers*/, unsigned i)
 {
     id = i;
 
-    whichskin   = value["whichskin"].asInt();
-    creature    = value["creature"].asInt();
-    coords      = value["coords"];
-    yaw         = value["yaw"].asFloat();
-    power       = value["power"].asFloat();
-    speedmult   = value["speedmult"].asFloat();
+    whichskin = value["whichskin"].asInt();
+    creature = value["creature"].asInt();
+    coords = value["coords"];
+    yaw = value["yaw"].asFloat();
+    power = value["power"].asFloat();
+    speedmult = value["speedmult"].asFloat();
 
-    numwaypoints    = value["waypoints"].size();
-    num_weapons     = value["weapons"].size();
+    numwaypoints = value["waypoints"].size();
+    num_weapons = value["weapons"].size();
 
     if (id == 0) {
         targetyaw = value["targetyaw"].asFloat();
     } else {
-        targetyaw   = yaw;
-        howactive   = value["howactive"].asInt();
-        immobile    = value["immobile"].asBool();
+        targetyaw = yaw;
+        howactive = value["howactive"].asInt();
+        immobile = value["immobile"].asBool();
         if (value["waypoints"].size() < 30) {
             for (unsigned k = 0; k < value["waypoints"].size(); k++) {
                 waypointtype[k] = value["waypoints"][k]["type"].asInt();
-                waypoints[k]    = value["waypoints"][k]["pos"];
+                waypoints[k] = value["waypoints"][k]["pos"];
             }
             waypoint = value["waypoint"].asInt();
             if (waypoint > int(value["waypoints"].size())) {
@@ -8477,15 +8493,15 @@ Person::Person(Json::Value value, int /*mapvers*/, unsigned i)
         weapons.push_back(Weapon(value["weapons"][j].asInt(), id));
     }
 
-    armorhead       = value["armor"]["head"].asFloat();
-    armorhigh       = value["armor"]["high"].asFloat();
-    armorlow        = value["armor"]["low"].asFloat();
-    protectionhead  = value["protection"]["head"].asFloat();
-    protectionhigh  = value["protection"]["high"].asFloat();
-    protectionlow   = value["protection"]["low"].asFloat();
-    metalhead       = value["metal"]["head"].asFloat();
-    metalhigh       = value["metal"]["high"].asFloat();
-    metallow        = value["metal"]["low"].asFloat();
+    armorhead = value["armor"]["head"].asFloat();
+    armorhigh = value["armor"]["high"].asFloat();
+    armorlow = value["armor"]["low"].asFloat();
+    protectionhead = value["protection"]["head"].asFloat();
+    protectionhigh = value["protection"]["high"].asFloat();
+    protectionlow = value["protection"]["low"].asFloat();
+    metalhead = value["metal"]["head"].asFloat();
+    metalhigh = value["metal"]["high"].asFloat();
+    metallow = value["metal"]["low"].asFloat();
 
     for (unsigned k = 0; k < value["clothes"].size(); k++) {
         clothes.push_back(value["clothes"][k]["path"].asString());
@@ -8506,25 +8522,26 @@ Person::Person(Json::Value value, int /*mapvers*/, unsigned i)
     realoldcoords = coords;
 }
 
-Person::operator Json::Value() {
+Person::operator Json::Value()
+{
     Json::Value person;
 
     person["whichskin"] = whichskin;
-    person["creature"]  = creature;
-    person["coords"]    = coords;
-    person["yaw"]       = yaw;
-    person["power"]     = power;
+    person["creature"] = creature;
+    person["coords"] = coords;
+    person["yaw"] = yaw;
+    person["power"] = power;
     person["speedmult"] = speedmult;
 
     if (aitype == playercontrolled) {
         person["targetyaw"] = targetyaw;
     } else {
         person["howactive"] = howactive;
-        person["immobile"]  = immobile;
+        person["immobile"] = immobile;
         if (numwaypoints < 30) {
             for (int k = 0; k < numwaypoints; k++) {
-                person["waypoints"][k]["type"]   = waypointtype[k];
-                person["waypoints"][k]["pos"]    = waypoints[k];
+                person["waypoints"][k]["type"] = waypointtype[k];
+                person["waypoints"][k]["pos"] = waypoints[k];
             }
             person["waypoint"] = waypoint;
         } else {
@@ -8535,9 +8552,9 @@ Person::operator Json::Value() {
         }
 
         // Not sure why scale and proportion are not saved for main player
-        person["scale"]     = scale;
+        person["scale"] = scale;
         for (int k = 0; k < 4; k++) {
-            person["proportions"][k]  = getProportion(k);
+            person["proportions"][k] = getProportion(k);
         }
     }
 
@@ -8545,21 +8562,21 @@ Person::operator Json::Value() {
         person["weapons"][k] = weapons[weaponids[k]].getType();
     }
 
-    person["armor"]["head"]         = armorhead;
-    person["armor"]["high"]         = armorhigh;
-    person["armor"]["low"]          = armorlow;
-    person["protection"]["head"]    = protectionhead;
-    person["protection"]["high"]    = protectionhigh;
-    person["protection"]["low"]     = protectionlow;
-    person["metal"]["head"]         = metalhead;
-    person["metal"]["high"]         = metalhigh;
-    person["metal"]["low"]          = metallow;
+    person["armor"]["head"] = armorhead;
+    person["armor"]["high"] = armorhigh;
+    person["armor"]["low"] = armorlow;
+    person["protection"]["head"] = protectionhead;
+    person["protection"]["high"] = protectionhigh;
+    person["protection"]["low"] = protectionlow;
+    person["metal"]["head"] = metalhead;
+    person["metal"]["high"] = metalhigh;
+    person["metal"]["low"] = metallow;
 
     for (unsigned k = 0; k < clothes.size(); k++) {
-        person["clothes"][k]["path"]    = clothes[k];
-        person["clothes"][k]["tintr"]   = clothestintr[k];
-        person["clothes"][k]["tintg"]   = clothestintg[k];
-        person["clothes"][k]["tintb"]   = clothestintb[k];
+        person["clothes"][k]["path"] = clothes[k];
+        person["clothes"][k]["tintr"] = clothestintr[k];
+        person["clothes"][k]["tintg"] = clothestintg[k];
+        person["clothes"][k]["tintb"] = clothestintb[k];
     }
 
     return person;

@@ -1,26 +1,56 @@
-# Lugaru HD
+# Loupgarenne
 
-[![build status](https://gitlab.com/osslugaru/lugaru/badges/master/build.svg)](https://gitlab.com/osslugaru/lugaru/commits/master)
+**A modern fork of Lugaru HD**
 
-This repository holds the official development effort of the open source game
-Lugaru (and in particular of its HD version) for Linux, Mac OSX and Windows.
+Loupgarenne is a fork of [OSS Lugaru](https://gitlab.com/osslugaru/lugaru) focused on
+technical improvements and modern platform support. The goal is to add enhancements to Lugaru while preserving the original gameplay experience.
 
-Developments from various forks have been integrated in the same code base in
-an attempt to get a unified game to further develop (e.g. with new features,
-new target platforms and new campaigns) and distribute.
+## Features implemented
 
-This is the same game as the one distributed by Wolfire Games on
-[Lugaru HD's website](http://www.wolfire.com/lugaru), though this repository
-contains some further developments which are not (yet) featured in the
-commercial version.
+- Unlocked framerate with fixed timestep physics
+- Fully frame-rate independent animations, timers, and visual effects
+- Apple Silicon (ARM64) support for macOS builds
+- UI fixes
+- Build pipeline improvements and refactoring
+
+## Features I'd like to see implemented
+
+- Anisotropic texture filtering
+- Proper anti-aliasing
+- Enhanced shadows
+- Settings to improve view distance
+- Enhanced font rendering
+- More builds: Linux ARM64, FreeBSD, CentOS etc. Nintendo Switch?
+
+## Credits
+
+- **Original game**: [Wolfire Games](http://www.wolfire.com) - Lugaru HD
+- **Open source project**: [OSS Lugaru team](https://gitlab.com/osslugaru/lugaru)
+- **This fork**: Loupgarenne
+
+## Getting the game data
+
+This repository contains the source code, but you need the game data files to play.
+You can purchase Lugaru HD from:
+- [Steam](https://store.steampowered.com/app/25010/Lugaru_HD/)
+- [Humble Bundle](https://www.humblebundle.com/store/lugaru)
+
+## Installation
+
+Download the latest release for your platform from the [Releases page](https://github.com/ryandeering/loupgarenne/releases):
+
+- **Windows**: `loupgarenne-x.x-windows-x64.zip` (64-bit) or `loupgarenne-x.x-windows-x86.zip` (32-bit)
+- **macOS**: `loupgarenne-x.x-macos-universal.zip` (Intel and Apple Silicon)
+- **Linux**: `loupgarenne-x.x-linux-x64.tar.gz`
+
+Extract the archive and either:
+- Copy the executable (`lugaru.exe` on Windows, `lugaru` on Linux, or the app bundle on macOS) into your existing Lugaru HD installation folder
 
 ## Project links
 
-This project is community-driven and uses the following communication channels:
-- GitLab repository (including issues): https://gitlab.com/osslugaru/lugaru
+**Upstream OSS Lugaru:**
+- GitLab repository: https://gitlab.com/osslugaru/lugaru
 - Project website: https://osslugaru.gitlab.io
-- Mailing list: http://icculus.org/mailman/listinfo/lugaru
-- IRC channel: [#lugaru on Freenode](http://webchat.freenode.net/?channels=lugaru)
 
 ## The game
 
@@ -31,6 +61,11 @@ slaughtering his village, he uncovers a far-reaching conspiracy involving the
 corrupt leaders of the rabbit republic and the starving wolves from a nearby
 den. Turner takes it upon himself to fight against their plot and save his
 fellow rabbits from slavery.
+
+## Name
+
+Loupgarenne takes inspiration from the French loup-garou, meaning werewolf, which is also the origin of the name Lugaru.
+Garenne is, in modern French, a word for a rabbit warren - making it a fitting double meaning for a game centred on rabbits and wolves.
 
 ## History
 
@@ -43,19 +78,23 @@ were put back together under the OSS Lugaru organization, originally on
 [Google Code](https://code.google.com/p/lugaru) and then on
 [Bitbucket](https://bitbucket.org/osslugaru/lugaru).
 
-This new repository on [GitLab](https://gitlab.com/osslugaru/lugaru) is run
-by the same team, and aims at revitalizing the development effort to clean
-things up, ensuring the code base builds and runs fine on all supported
-platforms, and easing the packaging of Lugaru in Linux distributions.
+The OSS Lugaru repository on [GitLab](https://gitlab.com/osslugaru/lugaru) is run
+by the OSS Lugaru team, aiming to revitalise the development effort, clean
+things up, ensure the code base builds and runs fine on all supported
+platforms, and ease packaging of Lugaru in Linux distributions.
 
-Ideally, the updated code base could also be used to update the Lugaru HD
-version sold by Wolfire Games once proven better than the current commercial
-builds.
+Loupgarenne is a fork of OSS Lugaru focused on enhancements, technical improvements and modern platform support.
 
 ## Compiling
 
 See the `COMPILING.md` for compilation instructions on all supported
 platforms.
+
+## Support
+
+This is a passion project, not a profit project! If you'd like to buy me a coffee:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/ryandeering)
 
 ## Licensing
 

@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,6 +35,7 @@ extern float texscale;
 extern Light light;
 extern Terrain terrain;
 extern float multiplier;
+extern float frameDeltaTime;
 extern float viewdistance;
 extern float fadestart;
 extern float screenwidth, screenheight;
@@ -89,7 +91,8 @@ int numboundaries = 0;
 XYZ boundary[360];
 int change = 0;
 
-enum drawmodes {
+enum drawmodes
+{
     normalmode,
     motionblurmode,
     radialzoommode,
@@ -110,7 +113,8 @@ void Game::flash(float amount, int delay) // shouldn't be that way, these should
 void DrawMenu();
 
 /*********************> DrawGLScene() <*****/
-int Game::DrawGLScene(StereoSide side) {
+int Game::DrawGLScene(StereoSide side)
+{
     static float texcoordwidth, texcoordheight;
     static float texviewwidth, texviewheight;
     static XYZ checkpoint;
@@ -180,7 +184,7 @@ int Game::DrawGLScene(StereoSide side) {
                 drawmode = motionblurmode;
             }
             motionbluramount = .2;
-            slomodelay -= multiplier;
+            slomodelay -= frameDeltaTime;
             if (slomodelay < 0) {
                 slomo = 0;
             }
@@ -263,11 +267,11 @@ int Game::DrawGLScene(StereoSide side) {
         // Reverse the movement if we're reversing stereo
         glTranslatef((stereoseparation / 2) * side * (stereoreverse ? -1 : 1), 0, 0);
 
-        //camera effects
+        // camera effects
         if (!cameramode && !freeze && !winfreeze) {
-            //shake
+            // shake
             glRotatef(float(Random() % 100) / 10 * camerashake /*+(woozy*woozy)/10*/, 0, 0, 1);
-            //sway
+            // sway
             glRotatef(pitch + sin(woozy / 2) * (Person::players[0]->damage / Person::players[0]->damagetolerance) * 5, 1, 0, 0);
             glRotatef(yaw + sin(woozy) * (Person::players[0]->damage / Person::players[0]->damagetolerance) * 5, 0, 1, 0);
         }
@@ -283,15 +287,10 @@ int Game::DrawGLScene(StereoSide side) {
         SetUpLight(&light, 0);
         glPushMatrix();
 
-        //heat blur effect in desert
-        if (abs(blurness - targetblurness) < multiplier * 10 || abs(blurness - targetblurness) > 2) {
+        blurness = blurness + (targetblurness - blurness) * (1.0f - pow(0.15f, frameDeltaTime * 60.0f));
+        if (fabs(blurness - targetblurness) < 0.1f || abs(blurness - targetblurness) > 2) {
             blurness = targetblurness;
             targetblurness = (float)(abs(Random() % 100)) / 40;
-        }
-        if (blurness < targetblurness) {
-            blurness += multiplier * 5;
-        } else {
-            blurness -= multiplier * 5;
         }
 
         if (environment == desertenvironment) {
@@ -307,7 +306,7 @@ int Game::DrawGLScene(StereoSide side) {
         glTranslatef(-viewer.x, -viewer.y, -viewer.z);
         frustum.GetFrustum();
 
-        //make shadow decals on terrain and Object::objects
+        // make shadow decals on terrain and Object::objects
         static XYZ point;
         static float size, opacity, rotation;
         rotation = 0;
@@ -392,7 +391,7 @@ int Game::DrawGLScene(StereoSide side) {
             }
         }
 
-        //Terrain
+        // Terrain
         glEnable(GL_TEXTURE_2D);
         glDepthMask(1);
         glEnable(GL_DEPTH_TEST);
@@ -407,7 +406,7 @@ int Game::DrawGLScene(StereoSide side) {
 
         terrain.drawdecals();
 
-        //Model
+        // Model
         glEnable(GL_CULL_FACE);
         glEnable(GL_LIGHTING);
         glDisable(GL_BLEND);
@@ -467,7 +466,7 @@ int Game::DrawGLScene(StereoSide side) {
         Object::Draw();
         glPopMatrix();
 
-        //draw hawk
+        // draw hawk
         glPushMatrix();
         if (frustum.SphereInFrustum(realhawkcoords.x + hawk.boundingspherecenter.x, realhawkcoords.y + hawk.boundingspherecenter.y, realhawkcoords.z + hawk.boundingspherecenter.z, 2)) {
             glAlphaFunc(GL_GREATER, 0.0001f);
@@ -542,7 +541,7 @@ int Game::DrawGLScene(StereoSide side) {
 
         Sprite::Draw();
 
-        //waypoints, pathpoints in editor
+        // waypoints, pathpoints in editor
         if (editorenabled) {
             glEnable(GL_BLEND);
             glDisable(GL_LIGHTING);
@@ -580,7 +579,7 @@ int Game::DrawGLScene(StereoSide side) {
             }
         }
 
-        //Text
+        // Text
 
         glEnable(GL_TEXTURE_2D);
         glColor4f(.5, .5, .5, 1);
@@ -606,7 +605,7 @@ int Game::DrawGLScene(StereoSide side) {
                 Tutorial::DrawTextInfo();
             }
 
-            //Hot spots
+            // Hot spots
             if (Hotspot::hotspots.size() && (bonustime >= 1 || bonus <= 0 || bonustime < 0) && !Tutorial::active) {
                 float closestdist = -1;
                 int closest = Hotspot::current;
@@ -851,7 +850,8 @@ int Game::DrawGLScene(StereoSide side) {
             glColor4f(.5, .5, .5, 1);
 
             if ((texttoggle || editorenabled) && devtools && !mainmenu) {
-                string = "The framespersecond is " + to_string(int(fps));
+                int displayFps = static_cast<int>(std::min(fps, 99999.0f));
+                string = "The framespersecond is " + to_string(displayFps);
                 text->glPrint(10, 30, string, 0, .8, 1024, 768);
 
                 if (editorenabled) {
@@ -977,7 +977,7 @@ int Game::DrawGLScene(StereoSide side) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             glEnable(GL_BLEND);
             if (Person::players[0]->dead) {
-                blackout += multiplier * 3;
+                blackout += frameDeltaTime * 3;
             }
             if (Person::players[0]->dead == 1) {
                 blackout = .4f;
@@ -1019,7 +1019,7 @@ int Game::DrawGLScene(StereoSide side) {
                 flashamount = 1;
             }
             if (flashdelay <= 0) {
-                flashamount -= multiplier;
+                flashamount -= frameDeltaTime;
             }
             flashdelay--;
             if (flashamount < 0) {
@@ -1241,13 +1241,13 @@ int Game::DrawGLScene(StereoSide side) {
             glDisable(GL_BLEND);
             glDepthMask(1);
 
-            //logo
+            // logo
             glDisable(GL_DEPTH_TEST);
             glColor3f(1.0, 1.0, 1.0); // no coloring
 
             glEnable(GL_TEXTURE_2D);
 
-            //Minimap
+            // Minimap
 
             if (loading != 4) {
                 glEnable(GL_TEXTURE_2D);
@@ -1291,13 +1291,13 @@ int Game::DrawGLScene(StereoSide side) {
             glDisable(GL_BLEND);
             glDepthMask(1);
 
-            //logo
+            // logo
             glDisable(GL_DEPTH_TEST);
             glColor3f(1.0, 1.0, 1.0); // no coloring
 
             glEnable(GL_TEXTURE_2D);
 
-            //Win Screen Won Victory
+            // Win Screen Won Victory
 
             glEnable(GL_TEXTURE_2D);
             glColor4f(1, 1, 1, 1);
@@ -1318,7 +1318,7 @@ int Game::DrawGLScene(StereoSide side) {
             string += to_string(int(wontime % 60));
             text->glPrintOutlined(1024 / 30, 768 * 6 / 8 - 40, string, 1, 2, 1024, 768);
 
-            //Awards
+            // Awards
             int awards[award_count];
             int numawards = award_awards(awards);
 
@@ -1625,11 +1625,12 @@ int Game::DrawGLScene(StereoSide side) {
     if (freeze || winfreeze || (mainmenu && gameon) || (!gameon && gamestarted)) {
         multiplier = tempmult;
     }
-    //Jordan fixed your warning!
+    // Jordan fixed your warning!
     return 0;
 }
 
-void DrawMenu() {
+void DrawMenu()
+{
     if (!unlockfps) {
         SDL_Delay(15);
     }
@@ -1639,7 +1640,7 @@ void DrawMenu() {
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     Game::ReSizeGLScene(90, .1f);
 
-    //draw menu background
+    // draw menu background
     glClear(GL_DEPTH_BUFFER_BIT);
     glEnable(GL_ALPHA_TEST);
     glAlphaFunc(GL_GREATER, 0.001f);
@@ -1703,7 +1704,7 @@ void DrawMenu() {
 
     Menu::drawItems();
 
-    //draw mouse cursor
+    // draw mouse cursor
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
@@ -1752,13 +1753,13 @@ void DrawMenu() {
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
 
-    //draw screen flash
+    // draw screen flash
     if (flashamount > 0) {
         if (flashamount > 1) {
             flashamount = 1;
         }
         if (flashdelay <= 0) {
-            flashamount -= multiplier;
+            flashamount -= frameDeltaTime;
         }
         flashdelay--;
         if (flashamount < 0) {

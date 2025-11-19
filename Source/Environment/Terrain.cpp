@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,6 +33,7 @@ extern int environment;
 extern float texscale;
 extern Light light;
 extern float multiplier;
+extern float frameDeltaTime;
 extern FRUSTUM frustum;
 extern float texdetail;
 extern int detail;
@@ -1184,12 +1186,12 @@ void Terrain::drawdecals()
             glPopMatrix();
         }
         for (int i = decals.size() - 1; i >= 0; i--) {
-            decals[i].alivetime += multiplier;
+            decals[i].alivetime += frameDeltaTime;
             if (decals[i].type == blooddecalslow) {
-                decals[i].alivetime -= multiplier * 2 / 3;
+                decals[i].alivetime -= frameDeltaTime * 2 / 3;
             }
             if (decals[i].type == blooddecalfast) {
-                decals[i].alivetime += multiplier * 4;
+                decals[i].alivetime += frameDeltaTime * 4;
             }
             if (decals[i].type == shadowdecal) {
                 DeleteDecal(i);

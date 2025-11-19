@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -30,6 +31,7 @@ extern int environment;
 extern float texscale;
 extern Light light;
 extern float multiplier;
+extern float frameDeltaTime;
 extern float gravity;
 extern Terrain terrain;
 extern int detail;
@@ -80,7 +82,7 @@ void Sprite::Draw()
     lightcolor[1] = light.color[1] * .5 + light.ambient[1];
     lightcolor[2] = light.color[2] * .5 + light.ambient[2];
 
-    checkdelay -= multiplier * 10;
+    checkdelay -= frameDeltaTime * 10;
 
     if (checkdelay <= 0) {
         check = 1;
@@ -284,44 +286,44 @@ void Sprite::Draw()
         glEnd();
         glPopMatrix();
     }
-    tempmult = multiplier;
+    tempmult = frameDeltaTime;
     for (int i = sprites.size() - 1; i >= 0; i--) {
-        multiplier = tempmult;
+        float spriteDt = tempmult;
         if (sprites[i]->type != snowsprite) {
-            sprites[i]->position += sprites[i]->velocity * multiplier;
-            sprites[i]->velocity += windvector * multiplier;
+            sprites[i]->position += sprites[i]->velocity * spriteDt;
+            sprites[i]->velocity += windvector * spriteDt;
         }
         if (sprites[i]->type == flamesprite || sprites[i]->type == smoketype) {
-            sprites[i]->position += windvector * multiplier / 2;
+            sprites[i]->position += windvector * spriteDt / 2;
         }
         if ((sprites[i]->type == flamesprite || sprites[i]->type == weaponflamesprite || sprites[i]->type == weaponshinesprite || sprites[i]->type == bloodflamesprite)) {
-            multiplier *= sprites[i]->speed * .7;
+            spriteDt *= sprites[i]->speed * .7;
         }
-        sprites[i]->alivetime += multiplier;
+        sprites[i]->alivetime += spriteDt;
 
         if (sprites[i]->type == cloudsprite || sprites[i]->type == cloudimpactsprite) {
-            sprites[i]->opacity -= multiplier / 2;
-            sprites[i]->size += multiplier / 2;
-            sprites[i]->velocity.y += gravity * multiplier * .25;
+            sprites[i]->opacity -= spriteDt / 2;
+            sprites[i]->size += spriteDt / 2;
+            sprites[i]->velocity.y += gravity * spriteDt * .25;
         }
         if (sprites[i]->type == breathsprite) {
-            sprites[i]->opacity -= multiplier / 2;
-            sprites[i]->size += multiplier / 2;
-            if (findLength(&sprites[i]->velocity) <= multiplier) {
+            sprites[i]->opacity -= spriteDt / 2;
+            sprites[i]->size += spriteDt / 2;
+            if (findLength(&sprites[i]->velocity) <= spriteDt) {
                 sprites[i]->velocity = 0;
             } else {
                 XYZ slowdown;
                 slowdown = sprites[i]->velocity * -1;
                 Normalise(&slowdown);
-                slowdown *= multiplier;
+                slowdown *= spriteDt;
                 sprites[i]->velocity += slowdown;
             }
         }
         if (sprites[i]->type == snowsprite) {
-            sprites[i]->size -= multiplier / 120;
-            sprites[i]->rotation += multiplier * 360;
-            sprites[i]->position.y -= multiplier;
-            sprites[i]->position += windvector * multiplier;
+            sprites[i]->size -= spriteDt / 120;
+            sprites[i]->rotation += spriteDt * 360;
+            sprites[i]->position.y -= spriteDt;
+            sprites[i]->position += windvector * spriteDt;
             if (sprites[i]->position.y < tempviewer.y - 6) {
                 sprites[i]->position.y += 12;
             }
@@ -343,8 +345,8 @@ void Sprite::Draw()
         }
         if (sprites[i]->type == bloodsprite) {
             bool spritehit = 0;
-            sprites[i]->rotation += multiplier * 100;
-            sprites[i]->velocity.y += gravity * multiplier;
+            sprites[i]->rotation += spriteDt * 100;
+            sprites[i]->velocity.y += gravity * spriteDt;
             if (check) {
                 XYZ where, startpoint, endpoint, movepoint, footpoint;
                 float rotationpoint;
@@ -405,20 +407,20 @@ void Sprite::Draw()
             }
         }
         if (sprites[i]->type == splintersprite) {
-            sprites[i]->rotation += sprites[i]->rotatespeed * multiplier;
-            sprites[i]->opacity -= multiplier / 2;
+            sprites[i]->rotation += sprites[i]->rotatespeed * spriteDt;
+            sprites[i]->opacity -= spriteDt / 2;
             if (sprites[i]->special == 0 || sprites[i]->special == 2 || sprites[i]->special == 3) {
-                sprites[i]->velocity.y += gravity * multiplier;
+                sprites[i]->velocity.y += gravity * spriteDt;
             }
             if (sprites[i]->special == 1) {
-                sprites[i]->velocity.y += gravity * multiplier * .5;
+                sprites[i]->velocity.y += gravity * spriteDt * .5;
             }
         }
         if (sprites[i]->type == flamesprite || sprites[i]->type == weaponflamesprite || sprites[i]->type == weaponshinesprite || sprites[i]->type == bloodflamesprite) {
-            sprites[i]->rotation += multiplier * sprites[i]->rotatespeed;
-            sprites[i]->opacity -= multiplier * 5 / 4;
+            sprites[i]->rotation += spriteDt * sprites[i]->rotatespeed;
+            sprites[i]->opacity -= spriteDt * 5 / 4;
             if (sprites[i]->type != weaponshinesprite && sprites[i]->type != bloodflamesprite) {
-                if (sprites[i]->opacity < .5 && sprites[i]->opacity + multiplier * 5 / 4 >= .5 && (abs(Random() % 4) == 0 || (sprites[i]->initialsize > 2 && Random() % 2 == 0))) {
+                if (sprites[i]->opacity < .5 && sprites[i]->opacity + spriteDt * 5 / 4 >= .5 && (abs(Random() % 4) == 0 || (sprites[i]->initialsize > 2 && Random() % 2 == 0))) {
                     MakeSprite(smoketype, sprites[i]->position, sprites[i]->velocity, .9, .9, .6, sprites[i]->size * 1.2, .4);
                 }
             }
@@ -428,10 +430,10 @@ void Sprite::Draw()
             }
         }
         if (sprites[i]->type == smoketype) {
-            sprites[i]->opacity -= multiplier / 3 / sprites[i]->initialsize;
-            sprites[i]->color[0] -= multiplier;
-            sprites[i]->color[1] -= multiplier;
-            sprites[i]->color[2] -= multiplier;
+            sprites[i]->opacity -= spriteDt / 3 / sprites[i]->initialsize;
+            sprites[i]->color[0] -= spriteDt;
+            sprites[i]->color[1] -= spriteDt;
+            sprites[i]->color[2] -= spriteDt;
             if (sprites[i]->color[0] < .6) {
                 sprites[i]->color[0] = .6;
             }
@@ -441,10 +443,10 @@ void Sprite::Draw()
             if (sprites[i]->color[2] < .6) {
                 sprites[i]->color[2] = .6;
             }
-            sprites[i]->size += multiplier;
+            sprites[i]->size += spriteDt;
             sprites[i]->velocity = 0;
             sprites[i]->velocity.y = 1.5;
-            sprites[i]->rotation += multiplier * sprites[i]->rotatespeed / 5;
+            sprites[i]->rotation += spriteDt * sprites[i]->rotatespeed / 5;
         }
         if (sprites[i]->opacity <= 0 || sprites[i]->size <= 0) {
             DeleteSprite(i);

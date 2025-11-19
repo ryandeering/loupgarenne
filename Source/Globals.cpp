@@ -2,7 +2,8 @@
 Copyright (C) 2003, 2010 - Wolfire Games
 Copyright (C) 2010-2017 - Lugaru contributors (see AUTHORS file)
 
-This file is part of Lugaru.
+This file is part of Lugaru, maintained as part of the Loupgarenne fork.
+See README and AUTHORS for project details.
 
 Lugaru is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -45,6 +46,9 @@ float oldgamespeed = 0;
 int difficulty = 0;
 float multiplier = 0;
 float realmultiplier = 0;
+float frameDeltaTime = 0;  // Full frame time with modifiers, for non-physics damping
+bool isFirstPhysicsTickOfFrame = false;  // True only on first Tick() call per frame
+bool physicsRanThisFrame = false;  // True if at least one physics tick ran this frame
 float screenwidth = 0, screenheight = 0;
 float minscreenwidth = 640, minscreenheight = 480;
 float maxscreenwidth = 3000, maxscreenheight = 3000;
