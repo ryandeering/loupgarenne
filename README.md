@@ -7,7 +7,7 @@ technical improvements and modern platform support. The goal is to add enhanceme
 
 ## Features implemented
 
-- Unlocked framerate with fixed timestep physics
+- Unlocked framerate with variable timestep physics
 - Fully frame-rate independent animations, timers, and visual effects
 - Apple Silicon (ARM64) support for macOS builds
 - UI fixes
