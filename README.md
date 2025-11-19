@@ -30,9 +30,14 @@ technical improvements and modern platform support. The goal is to add enhanceme
 
 ## Getting the game data
 
-This repository contains the source code, but you need the game data files to play.
-You can purchase Lugaru HD from:
-- [Steam](https://store.steampowered.com/app/25010/Lugaru_HD/)
+This repository includes the complete source code along with all required game data files.  
+• The source code is released under the GNU General Public License version 2 or any later version (GPL v2+).
+• The game assets (models, textures, audio, campaigns, etc.) found in the Data folder are distributed under the Creative Commons Attribution‑ShareAlike 3.0 Unported (CC BY-SA 3.0) and/or the Creative Commons Attribution‑ShareAlike 4.0 International (CC BY-SA 4.0) licences, as specified in the CONTENT-LICENSE.txt file
+
+You can play the game directly without purchasing additional assets.
+
+If you enjoy the game, please consider supporting the original developers by buying Lugaru HD:  
+- [Steam](https://store.steampowered.com/app/25010/Lugaru_HD/)  
 - [Humble Bundle](https://www.humblebundle.com/store/lugaru)
 
 ## Installation
