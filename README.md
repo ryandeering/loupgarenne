@@ -45,6 +45,7 @@ Download the latest release for your platform from the [Releases page](https://g
 
 Extract the archive and either:
 - Copy the executable (`lugaru.exe` on Windows, `lugaru` on Linux, or the app bundle on macOS) into your existing Lugaru HD installation folder
+On macOS, you may need to extract the contents of the old app bundle into a new folder and run the new app bundle from there.
 
 ## Project links
 
