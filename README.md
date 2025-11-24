@@ -21,6 +21,9 @@ technical improvements and modern platform support. The goal is to add enhanceme
 - Settings to improve view distance
 - Enhanced font rendering
 - More builds: Linux ARM64, FreeBSD, CentOS etc. Nintendo Switch?
+- Wasm compilation (playable in browser)
+- Controller support (probably model from Lugaru's controls) 
+- Lever editor tweaks (priority is low)
 
 ## Credits
 
