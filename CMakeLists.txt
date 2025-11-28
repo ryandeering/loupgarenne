@@ -209,6 +209,7 @@ if(WIN32 AND NOT MINGW)
                        /fo ${CMAKE_CURRENT_BINARY_DIR}/Lugaru.res
                        ${SRCDIR}/Lugaru.rc
                        DEPENDS ${SRCDIR}/Lugaru.rc
+                               ${CMAKE_SOURCE_DIR}/Dist/Windows/Lugaru.ico
     )
     set(LUGARU_OBJS "Lugaru.res")
 elseif(CYGWIN OR MINGW)
@@ -217,6 +218,7 @@ elseif(CYGWIN OR MINGW)
                        -o ${CMAKE_CURRENT_BINARY_DIR}/Lugaru.res
                        -i${SRCDIR}/Lugaru.rc
                        DEPENDS ${SRCDIR}/Lugaru.rc
+                               ${CMAKE_SOURCE_DIR}/Dist/Windows/Lugaru.ico
     )
     set(LUGARU_OBJS "Lugaru.res")
 endif()
@@ -289,6 +291,11 @@ set(LUGARU_LIBS ${OPENAL_LIBRARY} ${PNG_LIBRARY} ${JPEG_LIBRARY} ${SDL2_LIBRARIE
 
 add_executable(lugaru ${LUGARU_SRCS} ${LUGARU_H} ${LUGARU_OBJS})
 target_link_libraries(lugaru ${LUGARU_LIBS})
+
+# we want to avoid creating a console window for release builds on Windows
+if(WIN32 AND NOT CMAKE_BUILD_TYPE MATCHES "[Dd][Ee][Bb][Uu][Gg]")
+    set_target_properties(lugaru PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
 
 if(WIN32)
     add_definitions(-DBinIO_STDINT_HEADER=<stdint.h>)
