@@ -20,3 +20,8 @@ cscope.*
 Data/users
 Data/config.txt
 Source/Version.hpp
+.DS_Store
+jsoncpp/
+gl4es/
+lib/
+build-wasm/

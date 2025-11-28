@@ -33,6 +33,10 @@ along with Lugaru.  If not, see <http://www.gnu.org/licenses/>.
 #include "Graphic/Text.hpp"
 #include "Graphic/Texture.hpp"
 #include "Graphic/gamegl.hpp"
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "Objects/Object.hpp"
 #include "Objects/Person.hpp"
 #include "Objects/Weapons.hpp"
@@ -201,12 +205,27 @@ static __forceinline void swap_gl_buffers(void) {
     }
 }
 
+// Flag to track if Emscripten main loop is running (set in main.cpp)
+#ifdef __EMSCRIPTEN__
+extern bool g_emscriptenMainLoopRunning;
+#endif
+
 static __forceinline void set_vsync(bool enabled) {
-    if (!enabled) {
-        SDL_GL_SetSwapInterval(0);
-    } else {
-        SDL_GL_SetSwapInterval(1);
+#ifdef __EMSCRIPTEN__
+    // On Emscripten, skip SDL_GL_SetSwapInterval entirely - it internally calls
+    // emscripten_set_main_loop_timing which fails before main loop exists.
+    // Only use emscripten_set_main_loop_timing directly, and only after loop starts.
+    if (!g_emscriptenMainLoopRunning) {
+        return;
     }
+    if (!enabled) {
+        emscripten_set_main_loop_timing(EM_TIMING_SETTIMEOUT, 0);
+    } else {
+        emscripten_set_main_loop_timing(EM_TIMING_RAF, 0);
+    }
+#else
+    SDL_GL_SetSwapInterval(enabled ? 1 : 0);
+#endif
 }
 
 static __forceinline bool is_vsync_enabled(void) {

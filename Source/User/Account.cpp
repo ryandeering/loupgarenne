@@ -22,6 +22,7 @@ along with Lugaru.  If not, see <http://www.gnu.org/licenses/>.
 #include "User/Account.hpp"
 
 #include "Platform/Platform.hpp"
+#include "Utils/Folders.hpp"
 #include "Utils/binio.h"
 
 #include <fstream>
@@ -184,6 +185,14 @@ bool Account::hasActive()
 
 Account& Account::active()
 {
+    if (i_active < 0 || i_active >= int(accounts.size())) {
+        // Auto-create a default account if none exists
+        if (accounts.empty()) {
+            add("Player");
+        } else {
+            i_active = 0;
+        }
+    }
     return accounts.at(i_active);
 }
 
@@ -284,6 +293,11 @@ void Account::saveFile(string filename)
         }
 
         fclose(tfile);
+
+#ifdef __EMSCRIPTEN__
+        // Sync to browser storage
+        Folders::syncPersistentStorage();
+#endif
     } else {
         perror(("Couldn't save users in " + filename).c_str());
     }

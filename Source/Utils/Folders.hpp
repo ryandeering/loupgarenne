@@ -61,6 +61,9 @@ public:
 
     static bool file_exists(const std::string& filepath);
 
+    /** Case-insensitive file lookup */
+    static std::string findCaseInsensitiveFile(const std::string& filepath);
+
     /* Returns full path for a game resource */
     static inline std::string getResourcePath(const std::string& filepath)
     {
@@ -74,6 +77,14 @@ public:
     }
 
     static bool makeDirectory(const std::string& path);
+
+#ifdef __EMSCRIPTEN__
+    /** Initialize IDBFS for persistent browser storage */
+    static void initPersistentStorage();
+
+    /** Sync filesystem changes to IndexedDB */
+    static void syncPersistentStorage();
+#endif
 
 private:
     static const char* getHomeDirectory();

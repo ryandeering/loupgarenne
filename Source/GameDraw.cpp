@@ -193,6 +193,7 @@ int Game::DrawGLScene(StereoSide side)
         }
         if ((!changed && !slomo) || loading) {
             drawmode = normalmode;
+#ifndef __EMSCRIPTEN__
             if (ismotionblur && (fps > 100 || alwaysblur)) {
                 if (olddrawmode != realmotionblurmode) {
                     change = 1;
@@ -205,6 +206,7 @@ int Game::DrawGLScene(StereoSide side)
             } else {
                 change = 0;
             }
+#endif
         }
 
         if (freeze || winfreeze || (mainmenu && gameon) || (!gameon && gamestarted)) {
@@ -256,8 +258,12 @@ int Game::DrawGLScene(StereoSide side)
         glDepthMask(1);
         glAlphaFunc(GL_GREATER, 0.0001f);
         glEnable(GL_ALPHA_TEST);
+#ifndef __EMSCRIPTEN__
         glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
         glClear(GL_DEPTH_BUFFER_BIT);
+#else
+        glClear(GL_DEPTH_BUFFER_BIT);
+#endif
 
         glMatrixMode(GL_MODELVIEW);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1371,10 +1377,12 @@ int Game::DrawGLScene(StereoSide side)
 
         if (drawmode != normalmode) {
             glDisable(GL_DEPTH_TEST);
+#ifndef __EMSCRIPTEN__
             if (drawmode == motionblurmode) {
                 glDrawBuffer(GL_FRONT);
                 glReadBuffer(GL_BACK);
             }
+#endif
             glColor3f(1.0, 1.0, 1.0); // no coloring
 
             glEnable(GL_TEXTURE_2D);

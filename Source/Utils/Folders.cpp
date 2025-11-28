@@ -21,15 +21,22 @@ along with Lugaru.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "Folders.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
 
-#if PLATFORM_UNIX
+#if PLATFORM_UNIX || defined(__EMSCRIPTEN__)
+#include <dirent.h>
 #include <pwd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#endif
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
 #endif
 
 #if _WIN32
@@ -132,7 +139,8 @@ bool Folders::makeDirectory(const std::string& path)
 
 FILE* Folders::openMandatoryFile(const std::string& filename, const char* mode)
 {
-    FILE* tfile = fopen(filename.c_str(), mode);
+    std::string actualPath = findCaseInsensitiveFile(filename);
+    FILE* tfile = fopen(actualPath.c_str(), mode);
     if (tfile == NULL) {
         throw FileNotFoundException(filename);
     }
@@ -150,3 +158,130 @@ bool Folders::file_exists(const std::string& filepath)
         return true;
     }
 }
+
+std::string Folders::findCaseInsensitiveFile(const std::string& filepath)
+{
+    // First try the exact path
+    if (file_exists(filepath)) {
+        return filepath;
+    }
+
+#ifdef __EMSCRIPTEN__
+    // For Emscripten, try to find the file with case-insensitive matching
+    // Split path into directory and filename
+    size_t lastSlash = filepath.find_last_of('/');
+    if (lastSlash == std::string::npos) {
+        return filepath; // No directory, just return original
+    }
+
+    std::string directory = filepath.substr(0, lastSlash);
+    std::string filename = filepath.substr(lastSlash + 1);
+
+    // Open directory and search for case-insensitive match
+    DIR* dir = opendir(directory.c_str());
+    if (dir == NULL) {
+        return filepath; // Can't open directory, return original
+    }
+
+    std::string lowerFilename = filename;
+    std::transform(lowerFilename.begin(), lowerFilename.end(), lowerFilename.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    struct dirent* entry;
+    std::string result = filepath;
+    while ((entry = readdir(dir)) != NULL) {
+        std::string entryName = entry->d_name;
+        std::string lowerEntry = entryName;
+        std::transform(lowerEntry.begin(), lowerEntry.end(), lowerEntry.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
+        if (lowerEntry == lowerFilename) {
+            result = directory + "/" + entryName;
+            break;
+        }
+    }
+    closedir(dir);
+
+    return result;
+#else
+    // For non-Emscripten, just return the original path
+    return filepath;
+#endif
+}
+
+#ifdef __EMSCRIPTEN__
+// Initialize persistent storage - restore files from localStorage
+void Folders::initPersistentStorage()
+{
+    EM_ASM({
+        // Helper to create directory if it doesn't exist
+        function mkdirSafe(path) {
+            try {
+                FS.mkdir(path);
+            } catch (e) {
+                if (e.errno !== 20) throw e; // Ignore EEXIST
+            }
+        }
+
+        // Create the directories we need (NOT the users file - that's a file, not a dir!)
+        mkdirSafe('/home');
+        mkdirSafe('/home/web_user');
+        mkdirSafe('/home/web_user/.config');
+        mkdirSafe('/home/web_user/.config/lugaru');
+        mkdirSafe('/home/web_user/.local');
+        mkdirSafe('/home/web_user/.local/share');
+        mkdirSafe('/home/web_user/.local/share/lugaru');
+
+        // Restore config from localStorage if it exists
+        var ls = window["localStorage"];
+        var configData = ls.getItem('lugaru_config');
+        if (configData) {
+            try {
+                FS.writeFile('/home/web_user/.config/lugaru/config.txt', configData);
+            } catch (e) {}
+        }
+
+        // Restore user saves from localStorage if they exist
+        var usersData = ls.getItem('lugaru_users');
+        if (usersData) {
+            try {
+                var binary = atob(usersData);
+                var bytes = new Uint8Array(binary.length);
+                for (var i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                if (bytes.length >= 4) {
+                    var accountCount = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+                    if (accountCount > 100 || accountCount < 0) {
+                        ls.removeItem('lugaru_users');
+                    } else {
+                        FS.writeFile('/home/web_user/.local/share/lugaru/users', bytes);
+                    }
+                }
+            } catch (e) {
+                ls.removeItem('lugaru_users');
+            }
+        }
+    });
+}
+
+// Sync filesystem changes to localStorage
+void Folders::syncPersistentStorage()
+{
+    EM_ASM({
+        var ls = window["localStorage"];
+        try {
+            var configData = FS.readFile('/home/web_user/.config/lugaru/config.txt', { encoding: 'utf8' });
+            ls.setItem('lugaru_config', configData);
+        } catch (e) {}
+        try {
+            var usersData = FS.readFile('/home/web_user/.local/share/lugaru/users');
+            var binary = '';
+            for (var i = 0; i < usersData.length; i++) {
+                binary += String.fromCharCode(usersData[i]);
+            }
+            ls.setItem('lugaru_users', btoa(binary));
+        } catch (e) {}
+    });
+}
+#endif

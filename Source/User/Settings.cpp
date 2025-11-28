@@ -29,10 +29,20 @@ using namespace Game;
 
 void DefaultSettings() {
     detail = 2;
+#ifdef __EMSCRIPTEN__
+    ismotionblur = 0;
+#else
     ismotionblur = 1;
+#endif
     usermousesensitivity = 1;
+#ifdef __EMSCRIPTEN__
+    // Use 1080p for web builds
+    newscreenwidth = kContextWidth = 1920;
+    newscreenheight = kContextHeight = 1080;
+#else
     newscreenwidth = kContextWidth = 1024;
     newscreenheight = kContextHeight = 768;
+#endif
     fullscreen = 0;
     floatjump = 0;
     autoslomo = 1;
@@ -50,8 +60,8 @@ void DefaultSettings() {
     showdamagebar = 0;
     immediate = 0;
     velocityblur = 0;
-    unlockfps = 0;
-    disablevsync = 0;
+    unlockfps = 1;
+    disablevsync = 0; // VSync always on
     volume = 0.8f;
     ambientsound = 1;
     devtools = 0;
@@ -176,6 +186,10 @@ void SaveSettings() {
     opstream << disablevsync;
     opstream << "\n";
     opstream.close();
+
+#ifdef __EMSCRIPTEN__
+    Folders::syncPersistentStorage();
+#endif
 }
 
 bool LoadSettings() {
@@ -336,5 +350,19 @@ bool LoadSettings() {
     set_vsync(!disablevsync);
 
     newdetail = detail;
+
+#ifdef __EMSCRIPTEN__
+    // Force settings for web builds (performance)
+    ismotionblur = 0;
+    alwaysblur = 0;
+    disablevsync = 1;
+    set_vsync(0);
+    // Force 1080p resolution
+    kContextWidth = 1920;
+    kContextHeight = 1080;
+    newscreenwidth = 1920;
+    newscreenheight = 1080;
+#endif
+
     return true;
 }

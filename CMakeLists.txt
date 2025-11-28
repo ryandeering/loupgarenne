@@ -1,8 +1,9 @@
 project(lugaru)
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.13)
 
 include(FindPkgConfig)
+include(FetchContent)
 include(GNUInstallDirs)
 
 
@@ -59,6 +60,10 @@ if(LINUX)
     option(SYSTEM_INSTALL "Enable system-wide installation, with hardcoded data directory defined with CMAKE_INSTALL_DATADIR" OFF)
 endif()
 
+if(EMSCRIPTEN)
+    set(CMAKE_EXECUTABLE_SUFFIX ".html")
+endif()
+
 ### Version
 
 # Version for the current (stable) or next (development) release
@@ -111,8 +116,18 @@ configure_file(${SRCDIR}/Version.hpp.in ${SRCDIR}/Version.hpp ESCAPE_QUOTES @ONL
 
 ### Sources
 
+if(EMSCRIPTEN)
+    set(PLATFORM_SRCS ${SRCDIR}/Platform/PlatformWeb.cpp)
+else()
+    set(PLATFORM_SRCS
+        ${SRCDIR}/Platform/PlatformUnix.cpp
+        ${SRCDIR}/Platform/PlatformWindows.cpp
+    )
+endif()
+
 set(LUGARU_SRCS
     ${SRCDIR}/main.cpp
+    ${PLATFORM_SRCS}
     ${SRCDIR}/Animation/Animation.cpp
     ${SRCDIR}/Animation/Joint.cpp
     ${SRCDIR}/Animation/Muscle.cpp
@@ -140,8 +155,6 @@ set(LUGARU_SRCS
     ${SRCDIR}/Objects/Person.cpp
     ${SRCDIR}/Objects/PersonType.cpp
     ${SRCDIR}/Objects/Weapons.cpp
-    ${SRCDIR}/Platform/PlatformUnix.cpp
-    ${SRCDIR}/Platform/PlatformWindows.cpp
     ${SRCDIR}/User/Account.cpp
     ${SRCDIR}/User/Settings.cpp
     ${SRCDIR}/Utils/Folders.cpp
@@ -156,7 +169,6 @@ set(LUGARU_SRCS
     ${SRCDIR}/GameTick.cpp
     ${SRCDIR}/Globals.cpp
     ${SRCDIR}/Tutorial.cpp
-
 )
 
 set(LUGARU_H
@@ -228,48 +240,142 @@ endif()
 
 ### Dependencies
 
-# TODO: Work on supporting "GLVND" instead.
-set(OpenGL_GL_PREFERENCE LEGACY)
-find_package(OpenGL REQUIRED)
+if(EMSCRIPTEN)
+    message(STATUS "Configuring for Emscripten/WebAssembly build with GL4ES")
 
-# Windows is funky about OpenAL detection
-if(WIN32)
-    pkg_check_modules(OPENAL openal REQUIRED)
-    set(OPENAL_LIBRARY ${OPENAL_LIBRARIES})
+    # cdn config
+    option(USE_CDN_DATA "Load .data from CDN" OFF)
+    if(USE_CDN_DATA)
+        message(STATUS "Using CDN for data file")
+        file(WRITE ${CMAKE_BINARY_DIR}/pre.js "window['DATA_CDN_URL']='https://dev.ryandeering.ie/lugaru.data';")
+        set(DATA_CDN_FLAG "SHELL:--pre-js ${CMAKE_BINARY_DIR}/pre.js")
+    else()
+        set(DATA_CDN_FLAG "")
+    endif()
+
+    FetchContent_Declare(
+        gl4es
+        GIT_REPOSITORY https://github.com/ptitSeb/gl4es.git
+        GIT_TAG        8b424fa5aeea8a2445961ae98c326dc6061e109a
+    )
+    set(STATICLIB ON CACHE BOOL "" FORCE)
+    set(NOX11 ON CACHE BOOL "" FORCE)
+    set(NOEGL ON CACHE BOOL "" FORCE)
+    set(NO_LOADER ON CACHE BOOL "" FORCE)
+    set(NO_INIT_CONSTRUCTOR ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(gl4es)
+    include_directories(${gl4es_SOURCE_DIR}/include)
+
+    FetchContent_Declare(
+        jsoncpp
+        GIT_REPOSITORY https://github.com/open-source-parsers/jsoncpp.git
+        GIT_TAG        1.9.5
+    )
+    set(JSONCPP_WITH_TESTS OFF CACHE BOOL "" FORCE)
+    set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF CACHE BOOL "" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(BUILD_OBJECT_LIBS OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(jsoncpp)
+    include_directories(${jsoncpp_SOURCE_DIR}/include)
+
+    add_compile_options(
+        "SHELL:-s USE_SDL=2"
+        "SHELL:-s USE_LIBPNG=1"
+        "SHELL:-s USE_LIBJPEG=1"
+        "SHELL:-s USE_VORBIS=1"
+        "SHELL:-s USE_OGG=1"
+        -Oz                    
+        -fexceptions           
+        -DNDEBUG               
+        -flto                   
+    )
+
+    add_link_options(
+        "SHELL:-s FULL_ES2=1"
+        "SHELL:-s USE_SDL=2"
+        "SHELL:-s USE_LIBPNG=1"
+        "SHELL:-s USE_LIBJPEG=1"
+        "SHELL:-s USE_VORBIS=1"
+        "SHELL:-s USE_OGG=1"
+        "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+        "SHELL:-s MAX_WEBGL_VERSION=2"
+        "SHELL:-s DISABLE_EXCEPTION_CATCHING=0"
+        "SHELL:-s ASSERTIONS=0"
+        "SHELL:-s GL_ASSERTIONS=0"
+        "SHELL:-s ENVIRONMENT=web"
+        "SHELL:--closure 1"
+        -Oz
+        -flto
+        -fexceptions
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/Data@/Data"
+        "SHELL:--shell-file ${CMAKE_SOURCE_DIR}/Misc/shell.html"
+        ${DATA_CDN_FLAG}
+    )
+
+    set(LUGARU_EMSCRIPTEN_LIBS
+        GL
+        jsoncpp_static
+    )
+
+    set(OPENAL_LIBRARY "")
+    set(PNG_LIBRARY "")
+    set(JPEG_LIBRARY "")
+    set(SDL2_LIBRARIES "")
+    set(OPENGL_gl_LIBRARY "")
+    set(VORBISFILE_LIBRARIES "")
+    set(JSONCPP_LIBRARIES "")
+
+    set(OPENAL_INCLUDE_DIR "")
+    set(JPEG_INCLUDE_DIR "")
+    set(PNG_INCLUDE_DIR "")
+    set(OPENGL_INCLUDE_DIR "")
+    set(SDL2_INCLUDE_DIRS "")
+    set(VORBISFILE_INCLUDE_DIR "")
+    set(JSONCPP_INCLUDE_DIRS "")
 else()
-    find_package(OpenAL REQUIRED)
+    # TODO: Work on supporting "GLVND" instead.
+    set(OpenGL_GL_PREFERENCE LEGACY)
+    find_package(OpenGL REQUIRED)
+
+    if(WIN32)
+        pkg_check_modules(OPENAL openal REQUIRED)
+        set(OPENAL_LIBRARY ${OPENAL_LIBRARIES})
+    else()
+        find_package(OpenAL REQUIRED)
+    endif()
+
+    if(APPLE)
+        find_package(sdl2 REQUIRED)
+    elseif(WIN32)
+        find_package(SDL2 CONFIG REQUIRED)
+    else()
+        execute_process(
+            COMMAND sdl2-config --cflags
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            OUTPUT_VARIABLE "SDL2_INCLUDE_DIRS"
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+        execute_process(
+            COMMAND sdl2-config --libs
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            OUTPUT_VARIABLE "SDL2_LIBRARIES"
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+        message("SDL2_INCLUDE_DIRS='${SDL2_INCLUDE_DIRS}'")
+        message("SDL2_LIBRARIES='${SDL2_LIBRARIES}'")
+        pkg_check_modules(SDL2 sdl2 REQUIRED)
+    endif()
+
+    find_package(PNG REQUIRED)
+    find_package(JPEG REQUIRED)
+
+    pkg_check_modules(VORBISFILE vorbisfile REQUIRED)
+    pkg_check_modules(VORBIS vorbis REQUIRED)
+    pkg_check_modules(OGG ogg REQUIRED)
+    pkg_check_modules(JSONCPP jsoncpp REQUIRED)
 endif()
 
-# macOS has problems with using pkgconfig to find SDL2
-if(APPLE)
-    find_package(sdl2 REQUIRED)
-elseif(WIN32)
-    find_package(SDL2 CONFIG REQUIRED)
-else()
-    execute_process(
-        COMMAND sdl2-config --cflags
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        OUTPUT_VARIABLE "SDL2_INCLUDE_DIRS"
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-    execute_process(
-        COMMAND sdl2-config --libs
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        OUTPUT_VARIABLE "SDL2_LIBRARIES"
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-    message("SDL2_INCLUDE_DIRS='${SDL2_INCLUDE_DIRS}'")
-    message("SDL2_LIBRARIES='${SDL2_LIBRARIES}'")
-    pkg_check_modules(SDL2 sdl2 REQUIRED)
+if(NOT EMSCRIPTEN)
+    link_directories(${VORBISFILE_LIBRARY_DIRS} ${VORBIS_LIBRARY_DIRS} ${OGG_LIBRARY_DIRS} ${JSONCPP_LIBRARY_DIRS})
 endif()
-
-find_package(PNG REQUIRED)
-find_package(JPEG REQUIRED)
-
-pkg_check_modules(VORBISFILE vorbisfile REQUIRED)
-pkg_check_modules(VORBIS vorbis REQUIRED)
-pkg_check_modules(OGG ogg REQUIRED)
-pkg_check_modules(JSONCPP jsoncpp REQUIRED)
-
-link_directories(${VORBISFILE_LIBRARY_DIRS} ${VORBIS_LIBRARY_DIRS} ${OGG_LIBRARY_DIRS} ${JSONCPP_LIBRARY_DIRS})
 
 include_directories(
     ${OPENAL_INCLUDE_DIR}
@@ -290,12 +396,17 @@ set(LUGARU_LIBS ${OPENAL_LIBRARY} ${PNG_LIBRARY} ${JPEG_LIBRARY} ${SDL2_LIBRARIE
 add_executable(lugaru ${LUGARU_SRCS} ${LUGARU_H} ${LUGARU_OBJS})
 target_link_libraries(lugaru ${LUGARU_LIBS})
 
+if(EMSCRIPTEN)
+    target_link_libraries(lugaru ${LUGARU_EMSCRIPTEN_LIBS})
+endif()
+
 if(WIN32)
     add_definitions(-DBinIO_STDINT_HEADER=<stdint.h>)
     if(MINGW)
-        # An alternative would be to use _WIN32 consistently instead of WIN32
         add_definitions(-DWIN32)
     endif()
+elseif(EMSCRIPTEN)
+    add_definitions(-DPLATFORM_LINUX=1 -DPLATFORM_UNIX=1 -DBinIO_STDINT_HEADER=<stdint.h>)
 else()
     add_definitions(-DPLATFORM_LINUX=1 -DPLATFORM_UNIX=1 -DBinIO_STDINT_HEADER=<stdint.h>)
 endif()

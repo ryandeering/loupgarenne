@@ -26,6 +26,7 @@ along with Lugaru.  If not, see <http://www.gnu.org/licenses/>.
 #include "Menu/Menu.hpp"
 #include "Platform/Platform.hpp"
 #include "User/Settings.hpp"
+#include "Utils/Folders.hpp"
 #include "Version.hpp"
 
 #include <fstream>
@@ -43,6 +44,69 @@ using namespace Game;
 #include <windows.h>
 #else
 #include <unistd.h>
+#endif
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+extern "C" void initialize_gl4es();
+
+void DoUpdate();
+void CleanUp(void);
+static bool IsFocused();
+
+static bool emscripten_gameDone = false;
+static bool emscripten_gameFocused = true;
+
+bool g_emscriptenMainLoopRunning = false;
+
+static void emscripten_main_loop()
+{
+    if (emscripten_gameDone || tryquit) {
+        emscripten_cancel_main_loop();
+        deleteGame();
+        CleanUp();
+        return;
+    }
+
+    if (IsFocused()) {
+        emscripten_gameFocused = true;
+
+        deltah = 0;
+        deltav = 0;
+        SDL_Event e;
+        if (!waiting) {
+            // message pump
+            while (SDL_PollEvent(&e)) {
+                if (!sdlEventProc(e)) {
+                    emscripten_gameDone = true;
+                    emscripten_cancel_main_loop();
+                    deleteGame();
+                    CleanUp();
+                    return;
+                }
+            }
+        }
+
+        DoUpdate();
+    } else {
+        if (emscripten_gameFocused) {
+            emscripten_gameFocused = false;
+            DoUpdate();
+        }
+
+        SDL_Event e;
+        if (SDL_PollEvent(&e)) {
+            if (!sdlEventProc(e)) {
+                emscripten_gameDone = true;
+                emscripten_cancel_main_loop();
+                deleteGame();
+                CleanUp();
+                return;
+            }
+        }
+    }
+}
 #endif
 
 extern float multiplier;
@@ -84,18 +148,18 @@ int kContextHeight;
 
 void initGL()
 {
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f); 
     glClear(GL_COLOR_BUFFER_BIT);
     swap_gl_buffers();
 
     // clear all states
+#ifndef __EMSCRIPTEN__
+    // These features don't exist in WebGL
     glDisable(GL_ALPHA_TEST);
-    glDisable(GL_BLEND);
-    glDisable(GL_DEPTH_TEST);
     glDisable(GL_FOG);
     glDisable(GL_LIGHTING);
     glDisable(GL_LOGIC_OP);
     glDisable(GL_TEXTURE_1D);
-    glDisable(GL_TEXTURE_2D);
     glPixelTransferi(GL_MAP_COLOR, GL_FALSE);
     glPixelTransferi(GL_RED_SCALE, 1);
     glPixelTransferi(GL_RED_BIAS, 0);
@@ -105,22 +169,29 @@ void initGL()
     glPixelTransferi(GL_BLUE_BIAS, 0);
     glPixelTransferi(GL_ALPHA_SCALE, 1);
     glPixelTransferi(GL_ALPHA_BIAS, 0);
+#endif
+    glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_TEXTURE_2D);
 
     // set initial rendering states
-    glShadeModel(GL_SMOOTH);
     glClearDepth(1.0f);
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
-    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
     glCullFace(GL_FRONT);
     glEnable(GL_CULL_FACE);
+#ifndef __EMSCRIPTEN__
+    // Fixed-function pipeline features not in WebGL
+    glShadeModel(GL_SMOOTH);
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
     glEnable(GL_LIGHTING);
     glEnable(GL_DITHER);
     glEnable(GL_COLOR_MATERIAL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glAlphaFunc(GL_GREATER, 0.5f);
+#endif
 
     if (CanInitStereo(stereomode)) {
         InitStereo(stereomode);
@@ -207,6 +278,10 @@ bool SetUp()
 
     DefaultSettings();
 
+#ifdef __EMSCRIPTEN__
+    SDL_SetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT, "#canvas");
+#endif
+
     if (!SDL_WasInit(SDL_INIT_VIDEO)) {
         if (SDL_Init(SDL_INIT_VIDEO) == -1) {
             fprintf(stderr, "SDL_Init() failed: %s\n", SDL_GetError());
@@ -267,19 +342,19 @@ bool SetUp()
         sdlflags |= SDL_WINDOW_INPUT_GRABBED;
     }
 
-    sdlwindow = SDL_CreateWindow("Lugaru", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0), kContextWidth, kContextHeight, sdlflags);
+    sdlwindow = SDL_CreateWindow("Loupgarenne", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0), kContextWidth, kContextHeight, sdlflags);
 
     if (!sdlwindow) {
         fprintf(stderr, "SDL_CreateWindow() failed: %s\n", SDL_GetError());
         fprintf(stderr, "forcing 640x480...\n");
         kContextWidth = 640;
         kContextHeight = 480;
-        sdlwindow = SDL_CreateWindow("Lugaru", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0), kContextWidth, kContextHeight, sdlflags);
+        sdlwindow = SDL_CreateWindow("Loupgarenne", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0), kContextWidth, kContextHeight, sdlflags);
         if (!sdlwindow) {
             fprintf(stderr, "SDL_CreateWindow() failed: %s\n", SDL_GetError());
             fprintf(stderr, "forcing 640x480 windowed mode...\n");
             sdlflags &= ~SDL_WINDOW_FULLSCREEN;
-            sdlwindow = SDL_CreateWindow("Lugaru", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0), kContextWidth, kContextHeight, sdlflags);
+            sdlwindow = SDL_CreateWindow("Loupgarenne", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0), kContextWidth, kContextHeight, sdlflags);
 
             if (!sdlwindow) {
                 fprintf(stderr, "SDL_CreateWindow() failed: %s\n", SDL_GetError());
@@ -296,6 +371,10 @@ bool SetUp()
     }
 
     SDL_GL_MakeCurrent(sdlwindow, glctx);
+
+#ifdef __EMSCRIPTEN__
+    initialize_gl4es();
+#endif
 
     int dblbuf = 0;
     if ((SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &dblbuf) == -1) || (!dblbuf)) {
@@ -745,6 +824,11 @@ int main(int argc, char** argv)
     try {
 #endif
         {
+#ifdef __EMSCRIPTEN__
+            // Initialize persistent storage before loading settings
+            Folders::initPersistentStorage();
+#endif
+
             newGame();
 
             if (!SetUp()) {
@@ -755,9 +839,6 @@ int main(int argc, char** argv)
             if (commandLineOptions[DEVTOOLS]) {
                 devtools = true;
             }
-
-            bool gameDone = false;
-            bool gameFocused = true;
 
             srand(time(nullptr));
 
@@ -770,6 +851,14 @@ int main(int argc, char** argv)
                     }
                 }
             }
+
+#ifdef __EMSCRIPTEN__
+            g_emscriptenMainLoopRunning = true;
+            set_vsync(!disablevsync);
+            emscripten_set_main_loop(emscripten_main_loop, 0, 1);
+#else
+            bool gameDone = false;
+            bool gameFocused = true;
 
             while (!gameDone && !tryquit) {
                 if (IsFocused()) {
@@ -810,9 +899,12 @@ int main(int argc, char** argv)
             }
 
             deleteGame();
+#endif
         }
 
+#ifndef __EMSCRIPTEN__
         CleanUp();
+#endif
 
         return 0;
 #ifdef NDEBUG
